@@ -6,5 +6,11 @@
             <PatternLayout pattern="%-5p %d{yyyy-MM-dd HH:mm:ss} [%t] %C(%L) - %m%n"/>
         </Console>
     </Appenders>
-
+    
+    <Loggers>
+        <Root level="debug">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+    </Loggers>
+    
 </Configuration>

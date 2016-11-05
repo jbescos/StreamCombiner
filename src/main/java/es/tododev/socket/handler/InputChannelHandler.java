@@ -8,8 +8,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.Receiver;
+import es.tododev.combiner.Sender;
 
-public class InputChannelHandler implements ChannelHandler {
+public class InputChannelHandler implements ChannelHandler, Sender {
 
 	private final static Logger log = LogManager.getLogger();
 	private volatile boolean running = true;
@@ -35,7 +36,8 @@ public class InputChannelHandler implements ChannelHandler {
 				if(STOP.equals(line)){
 					running = false;
 				}else{
-					receiver.send(line);
+					// TODO
+					receiver.send(this, line);
 				}
 				byteBuffer.clear();
 			}
@@ -43,6 +45,18 @@ public class InputChannelHandler implements ChannelHandler {
 			// TODO what to do?
 			log.error("Unexpected exception", e);
 		}
+	}
+
+	@Override
+	public String getId() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void timeout() {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

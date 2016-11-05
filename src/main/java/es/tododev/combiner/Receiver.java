@@ -2,6 +2,6 @@ package es.tododev.combiner;
 
 public interface Receiver {
 
-	void send(String message) throws Exception;
+	void send(Sender sender, String message) throws Exception;
 	
 }
