@@ -24,6 +24,7 @@ public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
 	
 	static{
 		try {
+			// The jabx properties is not working for me
 			System.setProperty("javax.xml.bind.context.factory", "org.eclipse.persistence.jaxb.JAXBContextFactory");
 			jc = JAXBContext.newInstance(Dto.class);
 			log.debug("JAXBContext: "+jc);
