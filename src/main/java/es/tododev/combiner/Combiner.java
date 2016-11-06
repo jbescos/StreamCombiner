@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Observable;
 import java.util.Set;
 import java.util.TreeMap;
@@ -54,8 +53,8 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
-				ID min = getMinId();
-				checkValidId(id, min);
+				ID cutId = getCutId();
+				checkValidId(id, cutId);
 				E original = combined.get(id);
 				if(original == null){
 					combined.put(id, newElement);
@@ -66,7 +65,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 				if(!senderInfo.processed.contains(id)){
 					senderInfo.processed.add(id);
 				}
-				int sendToIdx = calculateIdxToSend(min);
+				int sendToIdx = calculateIdxToSend(cutId);
 				if(sendToIdx > -1){
 					flush(sendToIdx);
 				}
@@ -77,19 +76,19 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 		}
 	}
 	
-	private void checkValidId(ID id, ID min){
-		if(min != null){
-			int result = elementMgr.comparator().compare(min, id);
+	private void checkValidId(ID id, ID cutId){
+		if(cutId != null){
+			int result = elementMgr.comparator().compare(cutId, id);
 			if(result == 1){
 				throw new IllegalArgumentException(id+" has been already proccessed.");
 			}
 		}
 	}
 	
-	private ID getMinId(){
-		ID min = senders.values().stream().filter(info -> info.processed.size() > 0).map(info -> info.processed.get(0)).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
-		log.debug("Min value = "+min);
-		return min;
+	private ID getCutId(){
+		ID cutId = senders.values().stream().filter(info -> info.processed.size() > 0).map(info -> info.processed.get(info.processed.size()-1)).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
+		log.debug("CutId value = "+cutId);
+		return cutId;
 	}
 	
 	private int getMinSenderIdx(ID minID){
@@ -108,20 +107,16 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 		return idx;
 	}
 	
-	private int calculateIdxToSend(ID min){
-		if(min != null){
-			Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush(min)).map(entry -> entry.getKey()).collect(Collectors.toSet());
+	private int calculateIdxToSend(ID cutId){
+		if(cutId != null){
+			Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush(cutId)).map(entry -> entry.getKey()).collect(Collectors.toSet());
 			if(readyToFlushSenders.size() == senders.size()){
 				log.debug("Having the messages from all the inputs");
-				return getMinSenderIdx(min);
+				return getMinSenderIdx(cutId);
 			}else if(combined.size() >= toleranceLimit){
-				Entry<Sender,SenderInfo> id = senders.entrySet().stream()
-						.filter(entry -> entry.getValue().processed.size() > 0)
-						.filter(entry -> !readyToFlushSenders.contains(entry.getKey()))
-						.reduce((a, b) -> elementMgr.comparator().compare(a.getValue().processed.get(0), b.getValue().processed.get(0)) <= 0 ? a : b).orElse(null);
-				log.warn("Reached the tolerance limit, we are going to discard the hanged input having IDs: "+id.getValue().processed);
-				unregister(id.getKey());
-				return getMinSenderIdx(id.getValue().processed.get(0));
+				List<Sender> notReadyToFlushSenders = senders.keySet().stream().filter(sender -> !readyToFlushSenders.contains(sender)).collect(Collectors.toList());
+				log.warn("Reached the tolerance limit, we are going to discard the hanged inputs: "+notReadyToFlushSenders);
+				notReadyToFlushSenders.stream().forEach(sender -> unregister(sender));
 			}
 		}
 		return -1;

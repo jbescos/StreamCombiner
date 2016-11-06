@@ -168,15 +168,30 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
+	public void startWithSameTimestamp() throws CombinerException{
+		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
+		combiner.addObserver(this);
+		Sender sender1 = mock(Sender.class);
+		Sender sender2 = mock(Sender.class);
+		combiner.register(sender1);
+		combiner.register(sender2);
+		combiner.send(sender1, "<data> <timestamp>1478444952989</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478444952990</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478444952989</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478444952990</timestamp> <amount>1</amount> </data>");
+		assertEquals(Arrays.asList("{\"data\":{\"amount\":2.0,\"timestamp\":1478444952989}}"), output);
+	}
+	
+	@Test
 	@Ignore
 	public void concurrence() throws InterruptedException{
 		inConcurrence(100);
 	}
 	
 	private void inConcurrence(final int requestsPerThread) throws InterruptedException{
-		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
+		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10000);
 		combiner.addObserver(this);
-		final int THREADS = 2;
+		final int THREADS = 50;
 		ExecutorService service = Executors.newFixedThreadPool(THREADS);
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch end = new CountDownLatch(THREADS);
