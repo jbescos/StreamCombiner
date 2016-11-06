@@ -49,7 +49,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-				log.debug("Sender "+sender+": "+id);
+//				log.debug("Sender "+sender+": "+id);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
@@ -86,21 +86,26 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	}
 	
 	private ID getCutId(){
-		ID cutId = senders.values().stream().filter(info -> info.processed.size() > 0).map(info -> info.processed.get(info.processed.size()-1)).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
-		log.debug("CutId value = "+cutId);
+		for(SenderInfo info : senders.values()){
+			if(info.processed.size() == 0){
+				return null;
+			}
+		}
+		ID cutId = senders.values().stream().map(info -> info.processed.size()>0 ? info.processed.get(info.processed.size()-1):null).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
+//		log.debug("CutId value = "+cutId);
 		return cutId;
 	}
 	
 	private int getMinSenderIdx(ID minID){
 		List<ID> list = combined.keySet().stream().collect(Collectors.toList());
 		int idx = list.indexOf(minID);
-		log.debug("Returning idx = "+idx+" of "+list.size()+" elements. Limit value = "+minID);
+//		log.debug("Returning idx = "+idx+" of "+list.size()+" elements. Limit value = "+minID);
 		for(SenderInfo senderInfo : senders.values()){
 			int fromIndex = senderInfo.processed.indexOf(minID);
 			if(fromIndex > -1){
 				for(int i=0;i<fromIndex+1;i++){
 					ID removed = senderInfo.processed.remove(0);
-					log.debug("Removed "+removed+" from collection "+senderInfo.processed);
+//					log.debug("Removed "+removed+" from collection "+senderInfo.processed);
 				}
 			}
 		}
@@ -124,7 +129,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	
 	private void flush(int sendToIdx) throws Exception {	
 		List<ID> ordered = new ArrayList<>(combined.keySet());
-		log.debug("Flushing from 0 to "+sendToIdx+" in collection "+ordered);
+//		log.debug("Flushing from 0 to "+sendToIdx+" in collection "+ordered);
 		for(int i=0; i<(sendToIdx+1);i++){
 			E element = combined.remove(ordered.get(i));
 			String text = elementMgr.createFromObj(element);
@@ -142,11 +147,11 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 		private boolean isReadyToFlush(ID minID){
 			for(ID id : processed){
 				if(elementMgr.comparator().compare(minID, id) == -1){
-					log.debug(id+" higher than "+minID+", this sender is ready to flush");
+//					log.debug(id+" higher than "+minID+", this sender is ready to flush");
 					return true;
 				}
 			}
-			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
+//			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
 			return false;
 		}
 	}

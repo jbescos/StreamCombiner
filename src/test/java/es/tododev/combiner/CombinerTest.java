@@ -169,6 +169,7 @@ public class CombinerTest implements Observer {
 	
 	@Test
 	public void startWithSameTimestamp() throws CombinerException{
+		log.debug(" test -> startWithSameTimestamp");
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -183,15 +184,15 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	@Ignore
+//	@Ignore
 	public void concurrence() throws InterruptedException{
-		inConcurrence(100);
+		inConcurrence(1000);
 	}
 	
 	private void inConcurrence(final int requestsPerThread) throws InterruptedException{
 		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10000);
 		combiner.addObserver(this);
-		final int THREADS = 50;
+		final int THREADS = 10;
 		ExecutorService service = Executors.newFixedThreadPool(THREADS);
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch end = new CountDownLatch(THREADS);
