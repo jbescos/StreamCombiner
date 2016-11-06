@@ -2,7 +2,7 @@ package es.tododev.combiner;
 
 import java.util.Comparator;
 
-public interface ElementUtils<ID,E> {
+public interface ElementManager<ID,E> {
 
 	E createFromString(String raw) throws Exception;
 	String createFromObj(E obj) throws Exception;

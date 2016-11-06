@@ -16,7 +16,7 @@ import es.tododev.combiner.dto.Dto;
 
 public class CombinerTest implements Observer {
 
-	private final ElementUtilsImpl utils = new ElementUtilsImpl(new CachedComparator(1000,10));
+	private final ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000,10));
 	private final List<String> output = new ArrayList<>(); 
 	
 	@Before
@@ -25,8 +25,8 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	public void exampleFlow() throws Exception{
-		Combiner<Long,Dto> combiner = new Combiner<>(utils, 10);
+	public void exampleFlow() throws CombinerException{
+		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
 		Sender sender2 = mock(Sender.class);
@@ -46,13 +46,21 @@ public class CombinerTest implements Observer {
 				"{\"data\":{\"amount\":47.0,\"timestamp\":123456789}}", 
 				"{\"data\":{\"amount\":-17.0,\"timestamp\":123456790}}", 
 				"{\"data\":{\"amount\":9.0,\"timestamp\":123456791}}", 
-				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}", 
-				"{\"data\":{\"amount\":39.0,\"timestamp\":123456796}}"), output);
+				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}"), output);
+		combiner.unregister(sender1);
+		combiner.unregister(sender2);
+		assertEquals(Arrays.asList(
+				"{\"data\":{\"amount\":47.0,\"timestamp\":123456789}}", 
+				"{\"data\":{\"amount\":-17.0,\"timestamp\":123456790}}", 
+				"{\"data\":{\"amount\":9.0,\"timestamp\":123456791}}", 
+				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}",
+				"{\"data\":{\"amount\":39.0,\"timestamp\":123456796}}",
+				"{\"data\":{\"amount\":-89.0,\"timestamp\":123456799}}"), output);
 	}
 	
 	@Test
 	public void hangedInput(){
-		Combiner<Long,Dto> combiner = new Combiner<>(utils, 10);
+		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
 	}
 
 	@Override

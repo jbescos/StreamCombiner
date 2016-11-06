@@ -17,7 +17,7 @@ import org.eclipse.persistence.jaxb.MarshallerProperties;
 
 import es.tododev.combiner.dto.Dto;
 
-public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
+public class ElementManagerImpl implements ElementManager<Long, Dto> {
 
 	private final static Logger log = LogManager.getLogger();
 	private final static JAXBContext jc;
@@ -35,7 +35,7 @@ public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
 		}
 	}
 	
-	public ElementUtilsImpl(Comparator<Long> comparator) {
+	public ElementManagerImpl(Comparator<Long> comparator) {
 		this.comparator = comparator;
 	}
 	

@@ -23,25 +23,32 @@ public class CachedComparator implements Comparator<Long> {
 	
 	@Override
 	public int compare(Long o1, Long o2) {
-		Key key1 = new Key(o1, o2);
-		Integer result = cache.get(key1);
-		if(result == null){
-			result = Long.compare(o1, o2);
-			cache.put(key1, result);
-			if(o1 != o2){
+		// Comparing equalities should not be expensive. Don't need even to cache it.
+		if(o1 == o2){
+			return 0;
+		}else{
+			Key key1 = new Key(o1, o2);
+			Integer result = cache.get(key1);
+			if(result == null){
+				result = compareLongs(o1, o2);
+				cache.put(key1, result);
 				Key key2 = new Key(o2, o1);
 				cache.put(key2, result*(-1));
-			}
-			if(cache.size() > cacheSize){
-				Iterator<Key> iter = new ArrayList<>(cache.keySet()).iterator();
-				int index = 0;
-				while(iter.hasNext() && index < removeWhenFull){
-					cache.remove(iter.next());
-					index++;
+				if(cache.size() > cacheSize){
+					Iterator<Key> iter = new ArrayList<>(cache.keySet()).iterator();
+					int index = 0;
+					while(iter.hasNext() && index < removeWhenFull){
+						cache.remove(iter.next());
+						index++;
+					}
 				}
 			}
+			return result;
 		}
-		return result;
+	}
+	
+	protected int compareLongs(Long o1, Long o2){
+		return Long.compare(o1, o2);
 	}
 	
 	int getCacheSize(){
