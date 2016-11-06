@@ -50,7 +50,9 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-				log.debug("ID value: "+id);
+				if(!senders.containsKey(sender)){
+					throw new IllegalStateException("Sender is not registered");
+				}
 				setMinIdAndValidate(id);
 				E original = combined.get(id);
 				if(original == null){
@@ -123,7 +125,6 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 			this.current = current;
 		}
 		private boolean isReadyToFlush(){
-			log.debug("Min = "+minID+", previous = "+previous+", current = "+current);
 			return previous != null && minID != null && previous != current && elementMgr.comparator().compare(minID, previous) == -1;
 		}
 	}
