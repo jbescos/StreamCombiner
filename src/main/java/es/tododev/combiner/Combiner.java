@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Observable;
 import java.util.Set;
 import java.util.TreeMap;
@@ -20,7 +21,6 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	private final Map<ID,E> combined;
 	private final int toleranceLimit;
 	private final Map<Sender,SenderInfo> senders = new HashMap<>();
-	private ID minID;
 	
 	public Combiner(ElementManager<ID,E> elementMgr, int toleranceLimit) {
 		this.elementMgr = elementMgr;
@@ -29,7 +29,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	}
 	
 	public synchronized void register(Sender sender){
-		senders.put(sender, new SenderInfo(null, null));
+		senders.put(sender, new SenderInfo(new ArrayList<>()));
 	}
 	
 	public synchronized void unregister(Sender sender){
@@ -54,7 +54,8 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
-				setMinIdAndValidate(id);
+				ID min = getMinId();
+				checkValidId(id, min);
 				E original = combined.get(id);
 				if(original == null){
 					combined.put(id, newElement);
@@ -62,9 +63,10 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 					elementMgr.merge(original, newElement);
 				}
 				SenderInfo senderInfo = senders.get(sender);
-				senderInfo.previous = senderInfo.current;
-				senderInfo.current = id;
-				int sendToIdx = calculateIdxToSend();
+				if(!senderInfo.processed.contains(id)){
+					senderInfo.processed.add(id);
+				}
+				int sendToIdx = calculateIdxToSend(min);
 				if(sendToIdx > -1){
 					flush(sendToIdx);
 				}
@@ -75,34 +77,52 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 		}
 	}
 	
-	private void setMinIdAndValidate(ID id){
-		if(minID == null){
-			minID = id;
-		}
-		int result = elementMgr.comparator().compare(minID, id);
-		if(result == 1){
-			throw new IllegalArgumentException(id+" has been already proccessed. The current value is "+minID);
+	private void checkValidId(ID id, ID min){
+		if(min != null){
+			int result = elementMgr.comparator().compare(min, id);
+			if(result == 1){
+				throw new IllegalArgumentException(id+" has been already proccessed.");
+			}
 		}
 	}
 	
-	private int getMinSenderIdx(){
-		ID minID = senders.values().stream().map(info -> info.previous).reduce(BinaryOperator.minBy(elementMgr.comparator())).get();
+	private ID getMinId(){
+		ID min = senders.values().stream().filter(info -> info.processed.size() > 0).map(info -> info.processed.get(0)).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
+		log.debug("Min value = "+min);
+		return min;
+	}
+	
+	private int getMinSenderIdx(ID minID){
 		List<ID> list = combined.keySet().stream().collect(Collectors.toList());
 		int idx = list.indexOf(minID);
 		log.debug("Returning idx = "+idx+" of "+list.size()+" elements. Limit value = "+minID);
-		this.minID = minID;
+		for(SenderInfo senderInfo : senders.values()){
+			int fromIndex = senderInfo.processed.indexOf(minID);
+			if(fromIndex > -1){
+				for(int i=0;i<fromIndex+1;i++){
+					ID removed = senderInfo.processed.remove(0);
+					log.debug("Removed "+removed+" from collection "+senderInfo.processed);
+				}
+			}
+		}
 		return idx;
 	}
 	
-	private int calculateIdxToSend(){
-		Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush()).map(entry -> entry.getKey()).collect(Collectors.toSet());
-		if(readyToFlushSenders.size() == senders.size()){
-			log.debug("Having the messages from all the inputs");
-			return getMinSenderIdx();
-		}else if(combined.size() >= toleranceLimit){
-			List<Sender> notReadyToFlushSenders = senders.keySet().stream().filter(sender -> !readyToFlushSenders.contains(sender)).collect(Collectors.toList());
-			log.warn("Reached the tolerance limit, we are going to discard the hanged inputs: "+notReadyToFlushSenders);
-			notReadyToFlushSenders.stream().forEach(sender -> unregister(sender));
+	private int calculateIdxToSend(ID min){
+		if(min != null){
+			Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush(min)).map(entry -> entry.getKey()).collect(Collectors.toSet());
+			if(readyToFlushSenders.size() == senders.size()){
+				log.debug("Having the messages from all the inputs");
+				return getMinSenderIdx(min);
+			}else if(combined.size() >= toleranceLimit){
+				Entry<Sender,SenderInfo> id = senders.entrySet().stream()
+						.filter(entry -> entry.getValue().processed.size() > 0)
+						.filter(entry -> !readyToFlushSenders.contains(entry.getKey()))
+						.reduce((a, b) -> elementMgr.comparator().compare(a.getValue().processed.get(0), b.getValue().processed.get(0)) <= 0 ? a : b).orElse(null);
+				log.warn("Reached the tolerance limit, we are going to discard the hanged input having IDs: "+id.getValue().processed);
+				unregister(id.getKey());
+				return getMinSenderIdx(id.getValue().processed.get(0));
+			}
 		}
 		return -1;
 	}
@@ -120,13 +140,19 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	}
 	
 	private class SenderInfo{
-		private ID current;
-		private ID previous;
-		private SenderInfo(ID current, ID previous){
-			this.current = current;
+		private List<ID> processed;
+		private SenderInfo(List<ID> processed){
+			this.processed = processed;
 		}
-		private boolean isReadyToFlush(){
-			return previous != null && minID != null && previous != current && elementMgr.comparator().compare(minID, previous) == -1;
+		private boolean isReadyToFlush(ID minID){
+			for(ID id : processed){
+				if(elementMgr.comparator().compare(minID, id) == -1){
+					log.debug(id+" higher than "+minID+", this sender is ready to flush");
+					return true;
+				}
+			}
+			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
+			return false;
 		}
 	}
 

@@ -66,7 +66,7 @@ public class CombinerTest implements Observer {
 		combiner.register(sender1);
 		combiner.register(sender2);
 		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>");
-		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>35</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>35.5</amount> </data>");
 		combiner.send(sender1, "<data> <timestamp>123456790</timestamp> <amount>-20</amount> </data>");
 		combiner.send(sender2, "<data> <timestamp>123456791</timestamp> <amount>2</amount> </data>");
 		combiner.send(sender1, "<data> <timestamp>123456790</timestamp> <amount>3</amount> </data>");
@@ -76,14 +76,14 @@ public class CombinerTest implements Observer {
 		combiner.send(sender1, "<data> <timestamp>123456796</timestamp> <amount>39</amount> </data>");
 		combiner.send(sender2, "<data> <timestamp>123456799</timestamp> <amount>-89</amount> </data>");
 		assertEquals(Arrays.asList(
-				"{\"data\":{\"amount\":47.0,\"timestamp\":123456789}}", 
+				"{\"data\":{\"amount\":47.5,\"timestamp\":123456789}}", 
 				"{\"data\":{\"amount\":-17.0,\"timestamp\":123456790}}", 
 				"{\"data\":{\"amount\":9.0,\"timestamp\":123456791}}", 
 				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}"), output);
 		combiner.unregister(sender1);
 		combiner.unregister(sender2);
 		assertEquals(Arrays.asList(
-				"{\"data\":{\"amount\":47.0,\"timestamp\":123456789}}", 
+				"{\"data\":{\"amount\":47.5,\"timestamp\":123456789}}", 
 				"{\"data\":{\"amount\":-17.0,\"timestamp\":123456790}}", 
 				"{\"data\":{\"amount\":9.0,\"timestamp\":123456791}}", 
 				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}",
@@ -121,6 +121,7 @@ public class CombinerTest implements Observer {
 	
 	@Test
 	public void unknownIssue() throws CombinerException{
+		log.info(" test-> unknownIssue ");
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -144,8 +145,7 @@ public class CombinerTest implements Observer {
 		
 		assertEquals(Arrays.asList(
 				"{\"data\":{\"amount\":4.0,\"timestamp\":1478432883046}}", 
-				"{\"data\":{\"amount\":5.0,\"timestamp\":1478432883047}}",
-				"{\"data\":{\"amount\":3.0,\"timestamp\":1478432883048}}"), output);
+				"{\"data\":{\"amount\":5.0,\"timestamp\":1478432883047}}"), output);
 	}
 	
 	@Test(expected = CombinerException.class)
