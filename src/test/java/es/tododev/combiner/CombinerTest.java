@@ -16,7 +16,7 @@ import es.tododev.combiner.dto.Dto;
 
 public class CombinerTest implements Observer {
 
-	private final ElementUtilsImpl utils = new ElementUtilsImpl();
+	private final ElementUtilsImpl utils = new ElementUtilsImpl(new CachedComparator(1000,10));
 	private final List<String> output = new ArrayList<>(); 
 	
 	@Before

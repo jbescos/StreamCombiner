@@ -21,6 +21,7 @@ public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
 
 	private final static Logger log = LogManager.getLogger();
 	private final static JAXBContext jc;
+	private final Comparator<Long> comparator;
 	
 	static{
 		try {
@@ -32,6 +33,10 @@ public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
 			log.error("Can not load JAXBContext", e);
 			throw new ExceptionInInitializerError(e);
 		}
+	}
+	
+	public ElementUtilsImpl(Comparator<Long> comparator) {
+		this.comparator = comparator;
 	}
 	
 	@Override
@@ -65,7 +70,7 @@ public class ElementUtilsImpl implements ElementUtils<Long, Dto> {
 
 	@Override
 	public Comparator<Long> comparator() {
-		return (x, y) -> Long.compare(x, y);
+		return comparator;
 	}
 
 }
