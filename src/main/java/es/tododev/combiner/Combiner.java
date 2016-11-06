@@ -50,6 +50,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
+				log.debug("Sender "+sender+": "+id);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}

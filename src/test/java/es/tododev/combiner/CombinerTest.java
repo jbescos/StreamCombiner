@@ -3,10 +3,12 @@ package es.tododev.combiner;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.concurrent.CountDownLatch;
@@ -16,13 +18,22 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import es.tododev.combiner.dto.Dto;
 
 public class CombinerTest implements Observer {
 
+	private final List<String> output = Collections.synchronizedList(new ArrayList<>()); 
+	private final List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
+	private final AtomicLong expensiveCompareInvokation = new AtomicLong(0);
+	private final AtomicLong compareInvokation = new AtomicLong(0);
+	private final static Logger log = LogManager.getLogger();
+	private final ObjectMapper mapper = new ObjectMapper();
 	private final ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000, 100){
 		@Override
 		protected int compareLongs(Long o1, Long o2) {
@@ -37,11 +48,6 @@ public class CombinerTest implements Observer {
 		}
 		
 	});
-	private final List<String> output = Collections.synchronizedList(new ArrayList<>()); 
-	private final List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
-	private final AtomicLong expensiveCompareInvokation = new AtomicLong(0);
-	private final AtomicLong compareInvokation = new AtomicLong(0);
-	private final static Logger log = LogManager.getLogger();
 	
 	@Before
 	public void before(){
@@ -113,6 +119,35 @@ public class CombinerTest implements Observer {
 				"{\"data\":{\"amount\":19.0,\"timestamp\":123456793}}"), output);
 	}
 	
+	@Test
+	public void unknownIssue() throws CombinerException{
+		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
+		combiner.addObserver(this);
+		Sender sender1 = mock(Sender.class);
+		Sender sender2 = mock(Sender.class);
+		combiner.register(sender1);
+		combiner.register(sender2);
+		
+		combiner.send(sender2, "<data> <timestamp>1478432883046</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883046</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883046</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883046</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883047</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883047</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883047</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883047</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883047</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883048</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883048</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478432883048</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender2, "<data> <timestamp>1478432883049</timestamp> <amount>1</amount> </data>");
+		
+		assertEquals(Arrays.asList(
+				"{\"data\":{\"amount\":4.0,\"timestamp\":1478432883046}}", 
+				"{\"data\":{\"amount\":5.0,\"timestamp\":1478432883047}}",
+				"{\"data\":{\"amount\":3.0,\"timestamp\":1478432883048}}"), output);
+	}
+	
 	@Test(expected = CombinerException.class)
 	public void wrongInput() throws CombinerException{
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 5);
@@ -133,14 +168,15 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
+	@Ignore
 	public void concurrence() throws InterruptedException{
 		inConcurrence(100);
 	}
 	
 	private void inConcurrence(final int requestsPerThread) throws InterruptedException{
-		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10000);
+		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
-		final int THREADS = 50;
+		final int THREADS = 2;
 		ExecutorService service = Executors.newFixedThreadPool(THREADS);
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch end = new CountDownLatch(THREADS);
@@ -163,12 +199,31 @@ public class CombinerTest implements Observer {
 		start.countDown();
 		end.await();
 		assertEquals(0, exceptions.size());
+		for(int i=1;i<output.size();i++){
+			Dto previous = jsonToDto(output.get(i-1));
+			Dto current = jsonToDto(output.get(i));
+			assertEquals("Timestamps error in index = "+i+", previous = "+previous+" and current = "+current, -1, Long.compare(previous.getTimestamp(), current.getTimestamp()));
+		}
 		log.info("Expensive comparations = "+expensiveCompareInvokation.get()+" of total = "+compareInvokation.get());
 	}
 
 	@Override
 	public void update(Observable o, Object arg) {
 		output.add((String)arg);
+	}
+	
+	private Dto jsonToDto(String json){
+		try{
+			Map<String, Map<String, Object>> value =  mapper.readValue(json, new TypeReference<Map<String, Map<String, Object>>>() {});
+			Map<String, Object> content = value.get("data");
+			Dto dto = new Dto();
+			dto.setTimestamp((Long)content.get("timestamp"));
+			dto.setAmount((Double)content.get("amount"));
+			return dto;
+		} catch (IOException e) {
+			log.error("Can not parse JSON "+json, e);
+			throw new IllegalArgumentException("Can not parse JSON "+json, e);
+		}
 	}
 	
 }
