@@ -33,7 +33,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 	}
 	
 	@Override
-	public synchronized void register(Sender sender){
+	public void register(Sender sender){
 		senders.put(sender, new SenderInfo(new ArrayList<>()));
 	}
 	
@@ -56,7 +56,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-//				log.debug("Sender "+sender+": "+id);
+				log.debug("Sender "+sender+": "+id);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
@@ -99,7 +99,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 			}
 		}
 		ID cutId = senders.values().stream().map(info -> info.processed.size()>0 ? info.processed.get(info.processed.size()-1):null).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
-//		log.debug("CutId value = "+cutId);
+		log.debug("CutId value = "+cutId);
 		return cutId;
 	}
 	
@@ -136,7 +136,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 	
 	private void flush(int sendToIdx) throws Exception {	
 		List<ID> ordered = new ArrayList<>(combined.keySet());
-//		log.debug("Flushing from 0 to "+sendToIdx+" in collection "+ordered);
+		log.debug("Flushing from 0 to "+sendToIdx+" in collection "+ordered);
 		for(int i=0; i<(sendToIdx+1);i++){
 			E element = combined.remove(ordered.get(i));
 			String text = elementMgr.createFromObj(element);
@@ -161,6 +161,11 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 //			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
 			return false;
 		}
+	}
+
+	@Override
+	public synchronized void stop() {
+		senders.keySet().stream().forEach(sender -> unregister(sender));
 	}
 
 }

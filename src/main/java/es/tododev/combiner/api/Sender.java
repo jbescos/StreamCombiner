@@ -1,8 +1,15 @@
 package es.tododev.combiner.api;
 
-public interface Sender {
+public class Sender {
 
-	String getId();
-	void timeout();
+	private boolean running = true;
+	
+	public void timeout(){
+		running = false;
+	}
+
+	public boolean isRunning() {
+		return running;
+	}
 	
 }

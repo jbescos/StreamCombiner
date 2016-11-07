@@ -186,7 +186,7 @@ public class CombinerTest implements Observer {
 	@Test
 //	@Ignore
 	public void concurrence() throws InterruptedException{
-		inConcurrence(100000);
+		inConcurrence(1000);
 	}
 	
 	private void inConcurrence(final int requestsPerThread) throws InterruptedException{
