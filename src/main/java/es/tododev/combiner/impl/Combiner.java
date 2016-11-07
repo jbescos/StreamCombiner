@@ -1,4 +1,4 @@
-package es.tododev.combiner;
+package es.tododev.combiner.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,7 +13,12 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class Combiner<ID,E> extends Observable implements Receiver {
+import es.tododev.combiner.api.ElementManager;
+import es.tododev.combiner.api.Sender;
+import es.tododev.combiner.api.StreamCombiner;
+import es.tododev.combiner.api.StreamCombinerException;
+
+public class Combiner<ID,E> extends Observable implements StreamCombiner {
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManager<ID,E> elementMgr;
@@ -27,10 +32,12 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 		this.combined = new TreeMap<>(elementMgr.comparator());
 	}
 	
+	@Override
 	public synchronized void register(Sender sender){
 		senders.put(sender, new SenderInfo(new ArrayList<>()));
 	}
 	
+	@Override
 	public synchronized void unregister(Sender sender){
 		senders.remove(sender);
 		sender.timeout();
@@ -44,7 +51,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 	}
 
 	@Override
-	public void send(Sender sender, String message) throws CombinerException {
+	public void send(Sender sender, String message) throws StreamCombinerException {
 		try{
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
@@ -72,7 +79,7 @@ public class Combiner<ID,E> extends Observable implements Receiver {
 			}
 		}catch(Exception e){
 			log.error("ERROR: "+message, e);
-			throw new CombinerException("ERROR: "+message, e);
+			throw new StreamCombinerException("ERROR: "+message, e);
 		}
 	}
 	

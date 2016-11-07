@@ -1,4 +1,4 @@
-package es.tododev.combiner;
+package es.tododev.combiner.impl;
 
 import static org.junit.Assert.assertEquals;
 
@@ -9,7 +9,8 @@ import javax.xml.bind.JAXBException;
 import org.junit.Before;
 import org.junit.Test;
 
-import es.tododev.combiner.dto.Dto;
+import es.tododev.combiner.impl.CachedComparator;
+import es.tododev.combiner.impl.ElementManagerImpl;
 
 public class ElementManagerImplTest {
 

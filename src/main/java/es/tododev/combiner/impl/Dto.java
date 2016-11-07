@@ -1,4 +1,4 @@
-package es.tododev.combiner.dto;
+package es.tododev.combiner.impl;
 
 import javax.xml.bind.annotation.XmlRootElement;
 

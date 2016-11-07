@@ -7,18 +7,18 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import es.tododev.combiner.Receiver;
-import es.tododev.combiner.Sender;
+import es.tododev.combiner.api.Sender;
+import es.tododev.combiner.api.StreamCombiner;
 
 public class InputChannelHandler implements ChannelHandler, Sender {
 
 	private final static Logger log = LogManager.getLogger();
 	private volatile boolean running = true;
 	private final static String STOP = "STOP";
-	private final Receiver receiver;
+	private final StreamCombiner streamCombiner;
 	
-	public InputChannelHandler(Receiver receiver) {
-		this.receiver = receiver;
+	public InputChannelHandler(StreamCombiner streamCombiner) {
+		this.streamCombiner = streamCombiner;
 	}
 
 	@Override
@@ -37,7 +37,7 @@ public class InputChannelHandler implements ChannelHandler, Sender {
 					running = false;
 				}else{
 					// TODO
-					receiver.send(this, line);
+					streamCombiner.send(this, line);
 				}
 				byteBuffer.clear();
 			}

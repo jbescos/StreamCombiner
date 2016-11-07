@@ -1,4 +1,4 @@
-package es.tododev.combiner;
+package es.tododev.combiner.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -21,10 +21,10 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import es.tododev.combiner.dto.Dto;
+import es.tododev.combiner.api.Sender;
+import es.tododev.combiner.api.StreamCombinerException;
 
 public class CombinerTest implements Observer {
 
@@ -58,7 +58,7 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	public void exampleFlow() throws CombinerException{
+	public void exampleFlow() throws StreamCombinerException{
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -92,7 +92,7 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	public void hangedInput1() throws CombinerException{
+	public void hangedInput1() throws StreamCombinerException{
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 5);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -120,7 +120,7 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	public void unknownIssue() throws CombinerException{
+	public void unknownIssue() throws StreamCombinerException{
 		log.info(" test-> unknownIssue ");
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
@@ -148,8 +148,8 @@ public class CombinerTest implements Observer {
 				"{\"data\":{\"amount\":5.0,\"timestamp\":1478432883047}}"), output);
 	}
 	
-	@Test(expected = CombinerException.class)
-	public void wrongInput() throws CombinerException{
+	@Test(expected = StreamCombinerException.class)
+	public void wrongInput() throws StreamCombinerException{
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 5);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -157,8 +157,8 @@ public class CombinerTest implements Observer {
 		combiner.send(sender1, "hjdew h239ds");
 	}
 	
-	@Test(expected = CombinerException.class)
-	public void alreadyProcessedTimestamp() throws CombinerException{
+	@Test(expected = StreamCombinerException.class)
+	public void alreadyProcessedTimestamp() throws StreamCombinerException{
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
 		combiner.addObserver(this);
 		Sender sender1 = mock(Sender.class);
@@ -168,7 +168,7 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	public void startWithSameTimestamp() throws CombinerException{
+	public void startWithSameTimestamp() throws StreamCombinerException{
 		log.debug(" test -> startWithSameTimestamp");
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
@@ -186,7 +186,7 @@ public class CombinerTest implements Observer {
 	@Test
 //	@Ignore
 	public void concurrence() throws InterruptedException{
-		inConcurrence(1000);
+		inConcurrence(100000);
 	}
 	
 	private void inConcurrence(final int requestsPerThread) throws InterruptedException{

@@ -1,4 +1,4 @@
-package es.tododev.combiner;
+package es.tododev.combiner.api;
 
 public interface Sender {
 

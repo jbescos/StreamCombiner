@@ -1,4 +1,4 @@
-package es.tododev.combiner;
+package es.tododev.combiner.impl;
 
 import java.util.ArrayList;
 import java.util.Comparator;
