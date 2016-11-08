@@ -1,7 +1,6 @@
 package es.tododev.combiner.impl;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,9 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
@@ -21,20 +17,21 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombinerException;
+import es.tododev.utils.ConcurrentUtils;
+import es.tododev.utils.ConcurrentUtils.ConcurrentTest;
 
-public class CombinerTest implements Observer {
+public class StreamCombinerImplTest implements Observer {
 
 	private final List<String> output = Collections.synchronizedList(new ArrayList<>()); 
-	private final List<Exception> exceptions = Collections.synchronizedList(new ArrayList<>());
+	private final AtomicLong exceptions = new AtomicLong(0);
 	private final AtomicLong expensiveCompareInvokation = new AtomicLong(0);
 	private final AtomicLong compareInvokation = new AtomicLong(0);
 	private final static Logger log = LogManager.getLogger();
-	private final ObjectMapper mapper = new ObjectMapper();
+	private final static ObjectMapper mapper = new ObjectMapper();
 	private final ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000, 100){
 		@Override
 		protected int compareLongs(Long o1, Long o2) {
@@ -53,17 +50,17 @@ public class CombinerTest implements Observer {
 	@Before
 	public void before(){
 		output.clear();
-		exceptions.clear();
+		exceptions.set(0);
 		expensiveCompareInvokation.set(0);
 		compareInvokation.set(0);
 	}
 	
 	@Test
 	public void exampleFlow() throws StreamCombinerException{
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
-		Sender sender2 = mock(Sender.class);
+		Sender sender1 = new Sender();
+		Sender sender2 = new Sender();
 		combiner.register(sender1);
 		combiner.register(sender2);
 		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>");
@@ -94,11 +91,11 @@ public class CombinerTest implements Observer {
 	
 	@Test
 	public void hangedInput1() throws StreamCombinerException{
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 5);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
-		Sender sender2 = mock(Sender.class);
-		Sender sender3 = mock(Sender.class);
+		Sender sender1 = new Sender();
+		Sender sender2 = new Sender();
+		Sender sender3 = new Sender();
 		combiner.register(sender1);
 		combiner.register(sender2);
 		combiner.register(sender3);
@@ -123,10 +120,10 @@ public class CombinerTest implements Observer {
 	@Test
 	public void unknownIssue() throws StreamCombinerException{
 		log.info(" test-> unknownIssue ");
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
-		Sender sender2 = mock(Sender.class);
+		Sender sender1 = new Sender();
+		Sender sender2 = new Sender();
 		combiner.register(sender1);
 		combiner.register(sender2);
 		
@@ -151,18 +148,18 @@ public class CombinerTest implements Observer {
 	
 	@Test(expected = StreamCombinerException.class)
 	public void wrongInput() throws StreamCombinerException{
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 5);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
+		Sender sender1 = new Sender();
 		combiner.register(sender1);
 		combiner.send(sender1, "hjdew h239ds");
 	}
 	
 	@Test(expected = StreamCombinerException.class)
 	public void alreadyProcessedTimestamp() throws StreamCombinerException{
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
+		Sender sender1 = new Sender();
 		combiner.register(sender1);
 		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>");
 		combiner.send(sender1, "<data> <timestamp>123456788</timestamp> <amount>35</amount> </data>");
@@ -171,10 +168,10 @@ public class CombinerTest implements Observer {
 	@Test
 	public void startWithSameTimestamp() throws StreamCombinerException{
 		log.debug(" test -> startWithSameTimestamp");
-		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100);
 		combiner.addObserver(this);
-		Sender sender1 = mock(Sender.class);
-		Sender sender2 = mock(Sender.class);
+		Sender sender1 = new Sender();
+		Sender sender2 = new Sender();
 		combiner.register(sender1);
 		combiner.register(sender2);
 		combiner.send(sender1, "<data> <timestamp>1478444952989</timestamp> <amount>1</amount> </data>");
@@ -185,42 +182,40 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-	@Ignore
-	public void concurrence() throws InterruptedException{
-		inConcurrence(1000);
+//	@Ignore
+	public void concurrence() throws Exception{
+		inConcurrence(500, 5);
 	}
 	
-	private void inConcurrence(final int requestsPerThread) throws InterruptedException{
-		final Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 10000);
+	private void inConcurrence(final int requestsPerThread, final int threads) throws Exception{
+		final StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10000);
 		combiner.addObserver(this);
-		final int THREADS = 10;
-		ExecutorService service = Executors.newFixedThreadPool(THREADS);
-		CountDownLatch start = new CountDownLatch(1);
-		CountDownLatch end = new CountDownLatch(THREADS);
-		for(int i=0; i<THREADS; i++){
-			service.execute(() -> {
-				try {
-					Sender sender = mock(Sender.class);
-					combiner.register(sender);
-					start.await();
-					for(int j=0; j<requestsPerThread;j++){
-						combiner.send(sender, "<data> <timestamp>"+System.currentTimeMillis()+"</timestamp> <amount>"+j+"</amount> </data>");
-					}
-					combiner.unregister(sender);
-				} catch (Exception e) {
-					exceptions.add(e);
+		ConcurrentUtils.run(threads, new ConcurrentTest<Sender>() {
+			@Override
+			public Sender before() throws Exception {
+				Sender sender = new Sender();
+				combiner.register(sender);
+				return sender;
+			}
+			@Override
+			public void execute(Sender sender) throws Exception {
+				for(int j=0; j<requestsPerThread;j++){
+					combiner.send(sender, "<data> <timestamp>"+System.currentTimeMillis()+"</timestamp> <amount>1</amount> </data>");
 				}
-				end.countDown();
-			});
-		}
-		start.countDown();
-		end.await();
-		assertEquals(0, exceptions.size());
-		for(int i=1;i<output.size();i++){
-			Dto previous = jsonToDto(output.get(i-1));
-			Dto current = jsonToDto(output.get(i));
-			assertEquals("Timestamps error in index = "+i+", previous = "+previous+" and current = "+current, -1, Long.compare(previous.getTimestamp(), current.getTimestamp()));
-		}
+			}
+			@Override
+			public void onException(Exception e) {
+				exceptions.incrementAndGet();
+				log.error("Exception", e);
+			}
+			@Override
+			public void lastAction() throws Exception {}
+			@Override
+			public void after(Sender sender) throws Exception {
+				combiner.unregister(sender);
+			}
+		});
+		checkconcurrentTest(output, exceptions.get(), requestsPerThread*threads);
 		log.info("Expensive comparations = "+expensiveCompareInvokation.get()+" of total = "+compareInvokation.get());
 	}
 
@@ -229,7 +224,23 @@ public class CombinerTest implements Observer {
 		output.add((String)arg);
 	}
 	
-	private Dto jsonToDto(String json){
+	public static void checkconcurrentTest(List<String> output, long exceptions, int totalAmount){
+		int amount = 0;
+		Dto previous = null;
+		for(int i=0;i<output.size();i++){
+			Dto current = jsonToDto(output.get(i));
+			amount = (int) (amount + current.getAmount());
+			if(previous != null){
+				assertEquals("Timestamps error in index = "+i+", previous = "+previous+" and current = "+current, -1, Long.compare(previous.getTimestamp(), current.getTimestamp()));
+			}
+			previous = current;
+		}
+		assertEquals(totalAmount, amount);
+		assertEquals(0, exceptions);
+		log.debug(output);
+	}
+	
+	private static Dto jsonToDto(String json){
 		try{
 			Map<String, Map<String, Object>> value =  mapper.readValue(json, new TypeReference<Map<String, Map<String, Object>>>() {});
 			Map<String, Object> content = value.get("data");

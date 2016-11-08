@@ -67,9 +67,8 @@ public final class InputListener {
 	}
 	
 	private void stop() {
-		log.debug("Stopping application");
+		log.info("Stopping application");
 		service.shutdown();
-		streamCombiner.stop();
 		try {
 			Socket lastConnection = new Socket("localhost", port);
 			lastConnection.close();
@@ -84,7 +83,7 @@ public final class InputListener {
 	private void disconnect(Socket socket, Sender sender){
 		try {
 			streamCombiner.unregister(sender);
-			log.debug("Closing connection "+socket);
+			log.info("Closing connection "+socket);
 			currentSockets.decrementAndGet();
 		} finally {
 			try {
@@ -126,11 +125,11 @@ public final class InputListener {
 		} catch (IOException | StreamCombinerException e) {
 			log.warn("Lost connection: "+e.getMessage());
 		}
+		log.debug("Stop listening ...");
 		disconnect(socket, sender);
 	}
 	
 	private boolean analizeMessage(String message, Socket socket, Sender sender){
-		log.debug("Read message: "+message);
 		if(STOP_APPLICATION.equals(message)){
 			writeInSocket(socket, "Finalize application");
 			sender.timeout();

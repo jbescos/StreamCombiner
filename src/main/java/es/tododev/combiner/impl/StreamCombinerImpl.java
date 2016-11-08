@@ -18,7 +18,7 @@ import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
 import es.tododev.combiner.api.StreamCombinerException;
 
-public class Combiner<ID,E> extends Observable implements StreamCombiner {
+public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombiner {
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManager<ID,E> elementMgr;
@@ -26,7 +26,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 	private final int toleranceLimit;
 	private final Map<Sender,SenderInfo> senders = new HashMap<>();
 	
-	public Combiner(ElementManager<ID,E> elementMgr, int toleranceLimit) {
+	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit) {
 		this.elementMgr = elementMgr;
 		this.toleranceLimit = toleranceLimit;
 		this.combined = new TreeMap<>(elementMgr.comparator());
@@ -39,6 +39,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 	
 	@Override
 	public synchronized void unregister(Sender sender){
+		log.info("Unregister: "+sender);
 		senders.remove(sender);
 		sender.timeout();
 		if(senders.size() == 0){
@@ -56,7 +57,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-				log.debug("Sender "+sender+": "+id);
+//				log.debug("New message "+message);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
@@ -99,7 +100,6 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 			}
 		}
 		ID cutId = senders.values().stream().map(info -> info.processed.size()>0 ? info.processed.get(info.processed.size()-1):null).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
-		log.debug("CutId value = "+cutId);
 		return cutId;
 	}
 	
@@ -161,11 +161,6 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 //			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
 			return false;
 		}
-	}
-
-	@Override
-	public synchronized void stop() {
-		new ArrayList<>(senders.keySet()).stream().forEach(sender -> unregister(sender));
 	}
 
 }
