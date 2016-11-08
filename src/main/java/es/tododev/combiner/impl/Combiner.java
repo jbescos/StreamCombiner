@@ -165,7 +165,7 @@ public class Combiner<ID,E> extends Observable implements StreamCombiner {
 
 	@Override
 	public synchronized void stop() {
-		senders.keySet().stream().forEach(sender -> unregister(sender));
+		new ArrayList<>(senders.keySet()).stream().forEach(sender -> unregister(sender));
 	}
 
 }

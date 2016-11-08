@@ -15,6 +15,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,7 +41,7 @@ public class InputListenerTest implements Observer {
 	}
 	
 	@Test
-	public void example() throws InterruptedException, ExecutionException, IOException {
+	public void example() throws InterruptedException, ExecutionException, IOException, TimeoutException {
 		final CountDownLatch start = new CountDownLatch(1);
 		final CountDownLatch listening = new CountDownLatch(1);
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
@@ -59,15 +61,19 @@ public class InputListenerTest implements Observer {
 		start.await();
 		Socket socket = new Socket("localhost", PORT);
 		listening.await();
-		listener.writeInSocket(socket, "<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>\n");
-		listener.writeInSocket(socket, "<data> <timestamp>123456789</timestamp> <amount>13</amount> </data>\n");
+		listener.writeInSocket(socket, 
+				"<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>\n"
+				+ "<data> <timestamp>123456789</timestamp> <amount>13</amount> </data>\n");
 		listener.writeInSocket(socket, "<data> <timestamp>123456790</timestamp> <amount>12</amount> </data>\n");
-		listener.writeInSocket(socket, InputListener.STOP_APPLICATION);
+		listener.writeInSocket(socket, "<data> <timestamp>123456790</timestamp> <amount>12</amount> </data>\n");
+		listener.writeInSocket(socket, "<data> <timestamp>123456791</timestamp> <amount>12</amount> </data>\n");
+		listener.writeInSocket(socket, InputListener.STOP_APPLICATION+"\n");
+		execution.get(10000, TimeUnit.MILLISECONDS);
 		socket.close();
-		execution.get();
 		assertEquals(Arrays.asList(
-				"{\"data\":{\"amount\":24.0,\"timestamp\":123456789}}",
-				"{\"data\":{\"amount\":12.0,\"timestamp\":123456790}}"), output);
+				"{\"data\":{\"amount\":25.0,\"timestamp\":123456789}}",
+				"{\"data\":{\"amount\":24.0,\"timestamp\":123456790}}",
+				"{\"data\":{\"amount\":12.0,\"timestamp\":123456791}}"), output);
 	}
 
 	@Override

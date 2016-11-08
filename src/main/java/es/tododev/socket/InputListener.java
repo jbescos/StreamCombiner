@@ -30,8 +30,8 @@ public final class InputListener {
 	private final Optional<Visitor> visitor;
 	private AtomicInteger currentSockets = new AtomicInteger(0);
 	private final static String NEW_LINE = System.getProperty("line.separator");
-	public final static String STOP_APPLICATION = "stop_application"+NEW_LINE;
-	public final static String CLOSE_CONNECTION = "close_connection"+NEW_LINE;
+	public final static String STOP_APPLICATION = "STOP";
+	public final static String CLOSE_CONNECTION = "CLOSE";
 	
 	private InputListener(int nSockets, int port, StreamCombiner streamCombiner, Optional<Visitor> visitor){
 		this.nSockets = nSockets;
@@ -59,6 +59,7 @@ public final class InputListener {
 					currentSockets.incrementAndGet();
 				}
 			}
+			log.info("Finish socket reading");
 		}catch(IOException e){
 			log.error("Error in server socket", e);
 			stop();
@@ -94,7 +95,6 @@ public final class InputListener {
 	}
 	
 	void writeInSocket(Socket socket, String message) {
-		log.debug("Writing in socket: "+message);
 		try{
 			PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
 			writer.write(message);
@@ -114,8 +114,6 @@ public final class InputListener {
 		    String message = null;
 		    while ((message = reader.readLine()) != null) {
 		        if(analizeMessage(message, socket, sender)){
-		        	message = message.replaceAll(message, NEW_LINE);
-		        	log.debug("Read message: "+message);
 			        streamCombiner.send(sender, message);
 			        if(!sender.isRunning()){
 			        	writeInSocket(socket, "You have been disconnected");
@@ -130,6 +128,7 @@ public final class InputListener {
 	}
 	
 	private boolean analizeMessage(String message, Socket socket, Sender sender){
+		log.debug("Read message: "+message);
 		if(STOP_APPLICATION.equals(message)){
 			writeInSocket(socket, "Finalize application");
 			sender.timeout();
@@ -138,8 +137,6 @@ public final class InputListener {
 		}else if(CLOSE_CONNECTION.equals(message)){
 			writeInSocket(socket, "Closing connection");
 			sender.timeout();
-			return false;
-		}else if(NEW_LINE.equals(message)){
 			return false;
 		}else{
 			return true;

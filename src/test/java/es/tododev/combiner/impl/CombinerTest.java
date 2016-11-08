@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import es.tododev.combiner.api.Sender;
@@ -184,7 +185,7 @@ public class CombinerTest implements Observer {
 	}
 	
 	@Test
-//	@Ignore
+	@Ignore
 	public void concurrence() throws InterruptedException{
 		inConcurrence(1000);
 	}
