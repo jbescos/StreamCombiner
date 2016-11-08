@@ -57,7 +57,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-//				log.debug("New message "+message);
+				log.debug("New message -> "+message);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
@@ -79,7 +79,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 				}
 			}
 		}catch(Exception e){
-			log.error("ERROR: "+message, e);
+			log.error("ERROR: "+e);
 			throw new StreamCombinerException("ERROR: "+message, e);
 		}
 	}

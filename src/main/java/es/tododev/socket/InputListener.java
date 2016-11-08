@@ -48,15 +48,17 @@ public final class InputListener {
 		    }
 			while(!service.isShutdown()){
 				if(currentSockets.get() < nSockets){
-					log.debug("Listening for new connections");
+					log.debug("Listening for new connections in port "+port);
 					Socket socket = serverSocket.accept();
 					log.debug("New connection accepted");
 					writeInSocket(socket, "Connection accepted: "+socket);
 					Sender sender = new Sender();
 					streamCombiner.register(sender);
 					log.debug("Register the sender in the stream combiner");
-					service.execute(() -> handleRequest(socket, sender));
-					currentSockets.incrementAndGet();
+					if(!service.isShutdown()){
+						service.execute(() -> handleRequest(socket, sender));
+						currentSockets.incrementAndGet();
+					}
 				}
 			}
 			log.info("Finish socket reading");
@@ -113,17 +115,15 @@ public final class InputListener {
 		    	visitor.get().listening();
 		    }
 		    String message = null;
-		    while ((message = reader.readLine()) != null) {
-		        if(analizeMessage(message, socket, sender)){
-			        streamCombiner.send(sender, message);
-			        if(!sender.isRunning()){
-			        	writeInSocket(socket, "You have been disconnected");
-			        	break;
-			        }
+		    while ((message = reader.readLine()) != null && analizeMessage(message, socket, sender)) {
+		        streamCombiner.send(sender, message);
+		        if(!sender.isRunning()){
+		        	writeInSocket(socket, "You have been disconnected");
+		        	break;
 		        }
 		    }
 		} catch (IOException | StreamCombinerException e) {
-			log.warn("Lost connection: "+e.getMessage());
+			log.warn("Lost connection: "+e+". Cause: "+e);
 		}
 		log.debug("Stop listening ...");
 		disconnect(socket, sender);

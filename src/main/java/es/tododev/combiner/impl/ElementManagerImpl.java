@@ -30,7 +30,7 @@ public class ElementManagerImpl implements ElementManager<Long, Dto> {
 			jc = JAXBContext.newInstance(Dto.class);
 			log.debug("JAXBContext: "+jc);
 		} catch (JAXBException e) {
-			log.error("Can not load JAXBContext", e);
+			log.error("Can not load JAXBContext" +e);
 			throw new ExceptionInInitializerError(e);
 		}
 	}
