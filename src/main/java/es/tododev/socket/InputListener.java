@@ -76,7 +76,9 @@ public final class InputListener {
 		} catch (IOException e) {
 			log.error("Can not send the signal to stop listening the server socket");
 		}
-		
+		if(visitor.isPresent()){
+	    	visitor.get().finish();
+	    }
 	}
 	
 	private void disconnect(Socket socket, Sender sender){

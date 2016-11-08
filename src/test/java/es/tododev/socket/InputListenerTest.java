@@ -44,6 +44,7 @@ public class InputListenerTest implements Observer {
 	public void example() throws InterruptedException, ExecutionException, IOException, TimeoutException {
 		final CountDownLatch start = new CountDownLatch(1);
 		final CountDownLatch listening = new CountDownLatch(1);
+		final CountDownLatch finish = new CountDownLatch(1);
 		Combiner<Long,Dto> combiner = new Combiner<>(elementMgr, 100);
 		combiner.addObserver(this);
 		InputListener listener = InputListener.createInputListener(1, PORT, combiner, Optional.of(new Visitor(){
@@ -55,9 +56,13 @@ public class InputListenerTest implements Observer {
 			public void listening() {
 				listening.countDown();
 			}
+			@Override
+			public void finish() {
+				finish.countDown();
+			}
 		}));
 		
-		Future<?> execution = Executors.newSingleThreadExecutor().submit(() -> listener.start());
+		Executors.newSingleThreadExecutor().submit(() -> listener.start());
 		start.await();
 		Socket socket = new Socket("localhost", PORT);
 		listening.await();
@@ -68,7 +73,7 @@ public class InputListenerTest implements Observer {
 		listener.writeInSocket(socket, "<data> <timestamp>123456790</timestamp> <amount>12</amount> </data>\n");
 		listener.writeInSocket(socket, "<data> <timestamp>123456791</timestamp> <amount>12</amount> </data>\n");
 		listener.writeInSocket(socket, InputListener.STOP_APPLICATION+"\n");
-		execution.get(10000, TimeUnit.MILLISECONDS);
+		finish.await(10000, TimeUnit.MILLISECONDS);
 		socket.close();
 		assertEquals(Arrays.asList(
 				"{\"data\":{\"amount\":25.0,\"timestamp\":123456789}}",

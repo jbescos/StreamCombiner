@@ -4,5 +4,6 @@ public interface Visitor {
 
 	void start();
 	void listening();
+	void finish();
 	
 }
