@@ -2,6 +2,9 @@
 <Configuration xmlns="http://logging.apache.org/log4j/2.0/config">
 
     <Appenders>
+    	<File name="FILE" fileName="target/surefire-reports/streamcombiner.log" append="true">
+            <PatternLayout pattern="%-5p %d{yyyy-MM-dd HH:mm:ss} [%t] %C(%L) - %m%n"/>
+        </File>
         <Console name="STDOUT" target="SYSTEM_OUT">
             <PatternLayout pattern="%-5p %d{yyyy-MM-dd HH:mm:ss} [%t] %C(%L) - %m%n"/>
         </Console>
@@ -10,6 +13,7 @@
     <Loggers>
         <Root level="debug">
             <AppenderRef ref="STDOUT"/>
+            <AppenderRef ref="FILE"/>
         </Root>
     </Loggers>
     

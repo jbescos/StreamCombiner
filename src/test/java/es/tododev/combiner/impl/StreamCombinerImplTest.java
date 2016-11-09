@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import es.tododev.combiner.api.Sender;

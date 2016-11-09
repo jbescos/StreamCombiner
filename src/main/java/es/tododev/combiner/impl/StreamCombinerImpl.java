@@ -57,7 +57,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 			E newElement = elementMgr.createFromString(message);
 			ID id = elementMgr.getID(newElement);
 			synchronized (this) {
-				log.debug("New message -> "+message);
+//				log.debug("New message -> "+message);
 				if(!senders.containsKey(sender)){
 					throw new IllegalStateException("Sender is not registered");
 				}
@@ -79,7 +79,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 				}
 			}
 		}catch(Exception e){
-			log.error("ERROR: "+e);
+			log.error("ERROR: ", e);
 			throw new StreamCombinerException("ERROR: "+message, e);
 		}
 	}
@@ -123,7 +123,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 		if(cutId != null){
 			Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush(cutId)).map(entry -> entry.getKey()).collect(Collectors.toSet());
 			if(readyToFlushSenders.size() == senders.size()){
-				log.debug("Having the messages from all the inputs");
+//				log.debug("Having the messages from all the inputs");
 				return getMinSenderIdx(cutId);
 			}else if(combined.size() >= toleranceLimit){
 				List<Sender> notReadyToFlushSenders = senders.keySet().stream().filter(sender -> !readyToFlushSenders.contains(sender)).collect(Collectors.toList());

@@ -29,7 +29,6 @@ public final class InputListener {
 	private final StreamCombiner streamCombiner;
 	private final Optional<Visitor> visitor;
 	private AtomicInteger currentSockets = new AtomicInteger(0);
-	private final static String NEW_LINE = System.getProperty("line.separator");
 	public final static String STOP_APPLICATION = "STOP";
 	public final static String CLOSE_CONNECTION = "CLOSE";
 	
@@ -48,13 +47,11 @@ public final class InputListener {
 		    }
 			while(!service.isShutdown()){
 				if(currentSockets.get() < nSockets){
-					log.debug("Listening for new connections in port "+port);
 					Socket socket = serverSocket.accept();
-					log.debug("New connection accepted");
+					log.debug("New connection accepted "+socket);
 					writeInSocket(socket, "Connection accepted: "+socket);
 					Sender sender = new Sender();
 					streamCombiner.register(sender);
-					log.debug("Register the sender in the stream combiner");
 					if(!service.isShutdown()){
 						service.execute(() -> handleRequest(socket, sender));
 						currentSockets.incrementAndGet();
@@ -68,8 +65,7 @@ public final class InputListener {
 		}
 	}
 	
-	private void stop() {
-		log.info("Stopping application");
+	private synchronized void stop() {
 		service.shutdown();
 		try {
 			Socket lastConnection = new Socket("localhost", port);
@@ -85,7 +81,7 @@ public final class InputListener {
 	private void disconnect(Socket socket, Sender sender){
 		try {
 			streamCombiner.unregister(sender);
-			log.info("Closing connection "+socket);
+			log.info("Closing socket "+socket);
 			currentSockets.decrementAndGet();
 		} finally {
 			try {
@@ -108,7 +104,6 @@ public final class InputListener {
 	}
 	
 	private void handleRequest(Socket socket, Sender sender){
-		log.debug("Listening ...");
 		try{
 			BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		    if(visitor.isPresent()){
@@ -116,28 +111,21 @@ public final class InputListener {
 		    }
 		    String message = null;
 		    while ((message = reader.readLine()) != null && analizeMessage(message, socket, sender)) {
-		        streamCombiner.send(sender, message);
-		        if(!sender.isRunning()){
-		        	writeInSocket(socket, "You have been disconnected");
-		        	break;
-		        }
+		    	streamCombiner.send(sender, message);
 		    }
 		} catch (IOException | StreamCombinerException e) {
 			log.warn("Lost connection: "+e+". Cause: "+e);
 		}
-		log.debug("Stop listening ...");
 		disconnect(socket, sender);
 	}
 	
 	private boolean analizeMessage(String message, Socket socket, Sender sender){
 		if(STOP_APPLICATION.equals(message)){
 			writeInSocket(socket, "Finalize application");
-			sender.timeout();
 			stop();
 			return false;
 		}else if(CLOSE_CONNECTION.equals(message)){
 			writeInSocket(socket, "Closing connection");
-			sender.timeout();
 			return false;
 		}else{
 			return true;

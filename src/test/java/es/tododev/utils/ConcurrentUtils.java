@@ -15,6 +15,7 @@ public class ConcurrentUtils {
 		ExecutorService service = Executors.newFixedThreadPool(threads);
 		CountDownLatch start = new CountDownLatch(1);
 		CountDownLatch end = new CountDownLatch(threads);
+		CountDownLatch after = new CountDownLatch(threads);
 		for(int i=0; i<threads; i++){
 			service.execute(() -> {
 				T obj = null;
@@ -22,13 +23,14 @@ public class ConcurrentUtils {
 					obj = test.before();
 					start.await();
 					test.execute(obj);
+					after.countDown();
 				} catch (Exception e) {
 					test.onException(e);
 				}finally{
-					end.countDown();
 					try {
-						end.await();
+						after.await();
 						test.after(obj);
+						end.countDown();
 					} catch (Exception e) {
 						log.error("Can not invoke after()", e);
 					}
