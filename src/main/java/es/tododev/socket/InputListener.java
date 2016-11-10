@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.api.ElementSerializerException;
+import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
 import es.tododev.combiner.api.StreamCombinerException;
@@ -114,7 +115,7 @@ public final class InputListener {
 		    while ((message = reader.readLine()) != null && analizeMessage(message, socket, sender)) {
 		    	streamCombiner.send(sender, message);
 		    }
-		} catch (IOException | StreamCombinerException | ElementSerializerException e) {
+		} catch (IOException | StreamCombinerException | ElementSerializerException | OutputException e) {
 			log.warn("Lost connection: "+e+". Cause: "+e);
 		}
 		disconnect(socket, sender);

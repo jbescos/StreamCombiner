@@ -10,7 +10,7 @@ import es.tododev.combiner.impl.Dto;
 import es.tododev.combiner.impl.ElementManagerImpl;
 import es.tododev.combiner.impl.StreamCombinerImpl;
 import es.tododev.socket.InputListener;
-import es.tododev.socket.OutputWriter;
+import es.tododev.socket.OutputWriterImpl;
 
 public class Main {
 	
@@ -22,8 +22,8 @@ public class Main {
 		int inputs = getInputs(args);
 		log.info("Running StreamCombiner in port "+PORT+" and sending the output to "+Paths.get(FILE_NAME_OUTPUT).toAbsolutePath());
 		ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000, 100));
-		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100000);
-		combiner.addObserver(new OutputWriter(FILE_NAME_OUTPUT));
+		OutputWriterImpl<Long, Dto> out = new OutputWriterImpl<>(FILE_NAME_OUTPUT, elementMgr);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100000, out);
 		InputListener listener = InputListener.createInputListener(inputs, PORT, combiner);
 		listener.start();
 	}

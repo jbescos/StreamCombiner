@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Observable;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -18,23 +17,27 @@ import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.api.ElementManager;
 import es.tododev.combiner.api.ElementSerializerException;
+import es.tododev.combiner.api.OutputException;
+import es.tododev.combiner.api.OutputWriter;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
 import es.tododev.combiner.api.StreamCombinerException;
 
-public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombiner {
+public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManager<ID,E> elementMgr;
+	private final OutputWriter<E> writer;
 	private final Map<ID,Slot> combined;
 	private final int toleranceLimit;
 	private final Set<Sender> senders = new HashSet<>();
 	private ID latest;
 	
-	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit) {
+	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit, OutputWriter<E> writer) {
 		this.elementMgr = elementMgr;
 		this.toleranceLimit = toleranceLimit;
 		this.combined = new TreeMap<>(elementMgr.comparator());
+		this.writer = writer;
 	}
 	
 	@Override
@@ -50,7 +53,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 		if(senders.size() == 0){
 			try {
 				flush(null);
-			} catch (ElementSerializerException e) {
+			} catch (ElementSerializerException | OutputException e) {
 				log.error("Unexpected error", e);
 			}
 		}
@@ -69,7 +72,7 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 	}
 
 	@Override
-	public void send(Sender sender, String message) throws StreamCombinerException, ElementSerializerException {
+	public void send(Sender sender, String message) throws StreamCombinerException, ElementSerializerException, OutputException {
 		E newElement = elementMgr.createFromString(message);
 		ID id = elementMgr.getID(newElement);
 		synchronized (this) {
@@ -147,17 +150,14 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 		return false;
 	}
 	
-	private void flush(ID sendId) throws ElementSerializerException {	
+	private void flush(ID sendId) throws ElementSerializerException, OutputException {	
 		List<ID> ordered = new ArrayList<>(combined.keySet());
 		log.debug("Flushing till ID "+sendId+" in collection "+ordered);
 		for(ID id : ordered){
 			latest = id;
-			// FIXME eleminar al final
-			Slot slot = combined.remove(id);
-			String text = elementMgr.createFromObj(slot.getElement());
-			log.debug("Notify "+text);
-			setChanged();
-			notifyObservers(text);
+			Slot slot = combined.get(id);
+			writer.write(slot.getElement());
+			combined.remove(id);
 			if(sendId != null && sendId == id){
 				break;
 			}

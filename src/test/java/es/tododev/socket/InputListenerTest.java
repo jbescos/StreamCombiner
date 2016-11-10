@@ -1,6 +1,10 @@
 package es.tododev.socket;
 
+import java.io.IOException;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.CountDownLatch;
@@ -15,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import es.tododev.combiner.api.ElementSerializerException;
+import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.impl.CachedComparator;
 import es.tododev.combiner.impl.Dto;
 import es.tododev.combiner.impl.ElementManagerImpl;
@@ -26,7 +32,7 @@ public class InputListenerTest {
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000, 100));
-	private final OutputWriter out = new OutputWriter("target/output.log");
+	private final OutputWriterImpl<Long, Dto> out = new OutputWriterImpl<>("target/output.log", elementMgr);
 	private final int PORT = 25555;
 	
 	@Test
@@ -40,8 +46,7 @@ public class InputListenerTest {
 		final CountDownLatch start = new CountDownLatch(1);
 		final CountDownLatch listening = new CountDownLatch(sockets);
 		final CountDownLatch finish = new CountDownLatch(1);
-		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 1000);
-		combiner.addObserver(out);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 1000, out);
 		final InputListener listener = InputListener.createInputListener(sockets, PORT, combiner, Optional.of(new Visitor(){
 			@Override
 			public void start() {
@@ -88,9 +93,9 @@ public class InputListenerTest {
 	}
 	
 	@Test
-	public void createExampleFiles() throws InterruptedException, ExecutionException{
-		final int FILES = 5;
-		final int LINES = 1000;
+	public void createExampleFiles() throws InterruptedException, ExecutionException, OutputException, ElementSerializerException, IOException{
+		final int FILES = 3;
+		final int LINES = 5000;
 		CompletionService<String> ecs = new ExecutorCompletionService<>(Executors.newFixedThreadPool(FILES));
 		for(int i=0;i<FILES;i++){
 			ecs.submit(() -> {
@@ -99,10 +104,12 @@ public class InputListenerTest {
 				return builder.toString();
 			});
 		}
+		
 		for(int i=0;i<FILES;i++){
-			String text = ecs.take().get();
-			new OutputWriter("target/file"+i+".log").update(null, text);
-		}
+			String text = ecs.take().get()+"\n";
+			String fileName = "target/file"+i+".log";
+			Files.write(Paths.get(fileName), text.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+		}	
 	}
 	
 }

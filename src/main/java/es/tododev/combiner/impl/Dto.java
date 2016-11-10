@@ -11,6 +11,11 @@ public class Dto {
 	public long getTimestamp() {
 		return timestamp;
 	}
+	public Dto(long timestamp, double amount){
+		this.timestamp = timestamp;
+		this.amount = amount;
+	}
+	public Dto(){}
 	public void setTimestamp(long timestamp) {
 		this.timestamp = timestamp;
 	}
