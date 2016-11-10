@@ -1,0 +1,23 @@
+
+
+<<Stream Combiner>>
+
+Help information:
+	-sockets            <numeric value>     Maximum number of open connections. Default 4.
+	-port               <numeric value>     Port of the server socket. Default 22222.
+	-length             <numeric value>     Limit of inputs in the queue. Default 100000.
+	-out_file           <file name>         The file to write the output. output.log
+	-cache_size         <numeric value>     Number of cached comparators. Default 1000
+	-cache_cleanup      <numeric value>     Number of elements to remove in the cache when it is full. Default 100.
+	
+Example:
+	$ java -jar streamcombiner-1.0-jar-with-dependencies.jar -port 23456 -sockets 4 -length 10000
+	
+Socket instructions:
+
+	STOP	Finalize the application and close all the active sockets
+	CLOSE	Close the current connection
+
+Author:
+	Jorge Bescos (jorge.bescos@gmail.com)
+	
