@@ -12,6 +12,7 @@ import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import es.tododev.combiner.impl.CachedComparator;
@@ -29,6 +30,7 @@ public class InputListenerTest {
 	private final int PORT = 25555;
 	
 	@Test
+	@Ignore
 	public void inConcurrence() throws Exception{
 		log.debug("inConcurrence begin");
 		inConcurrence(4, 1000);

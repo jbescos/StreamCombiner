@@ -17,9 +17,9 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import es.tododev.combiner.api.ElementSerializerException;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombinerException;
 import es.tododev.utils.ConcurrentUtils;
@@ -57,7 +57,7 @@ public class StreamCombinerImplTest implements Observer {
 	}
 	
 	@Test
-	public void exampleFlow() throws StreamCombinerException{
+	public void exampleFlow() throws StreamCombinerException, ElementSerializerException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10);
 		combiner.addObserver(this);
 		Sender sender1 = new Sender();
@@ -91,7 +91,7 @@ public class StreamCombinerImplTest implements Observer {
 	}
 	
 	@Test
-	public void hangedInput1() throws StreamCombinerException{
+	public void hangedInput1() throws StreamCombinerException, ElementSerializerException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5);
 		combiner.addObserver(this);
 		Sender sender1 = new Sender();
@@ -119,7 +119,7 @@ public class StreamCombinerImplTest implements Observer {
 	}
 	
 	@Test
-	public void unknownIssue() throws StreamCombinerException{
+	public void unknownIssue() throws StreamCombinerException, ElementSerializerException{
 		log.info(" test-> unknownIssue ");
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100);
 		combiner.addObserver(this);
@@ -147,8 +147,8 @@ public class StreamCombinerImplTest implements Observer {
 				"{\"data\":{\"amount\":5.0,\"timestamp\":1478432883047}}"), output);
 	}
 	
-	@Test(expected = StreamCombinerException.class)
-	public void wrongInput() throws StreamCombinerException{
+	@Test(expected = ElementSerializerException.class)
+	public void wrongInput() throws StreamCombinerException, ElementSerializerException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5);
 		combiner.addObserver(this);
 		Sender sender1 = new Sender();
@@ -157,17 +157,19 @@ public class StreamCombinerImplTest implements Observer {
 	}
 	
 	@Test(expected = StreamCombinerException.class)
-	public void alreadyProcessedTimestamp() throws StreamCombinerException{
+	public void alreadyProcessedTimestamp() throws StreamCombinerException, ElementSerializerException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10);
 		combiner.addObserver(this);
 		Sender sender1 = new Sender();
 		combiner.register(sender1);
 		combiner.send(sender1, "<data> <timestamp>123456789</timestamp> <amount>12</amount> </data>");
 		combiner.send(sender1, "<data> <timestamp>123456788</timestamp> <amount>35</amount> </data>");
+		assertEquals(Arrays.asList("{\"data\":{\"amount\":35.0,\"timestamp\":123456788}}"), output);
+		combiner.send(sender1, "<data> <timestamp>123456788</timestamp> <amount>35</amount> </data>");
 	}
 	
 	@Test
-	public void startWithSameTimestamp() throws StreamCombinerException{
+	public void startWithSameTimestamp() throws StreamCombinerException, ElementSerializerException{
 		log.debug(" test -> startWithSameTimestamp");
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100);
 		combiner.addObserver(this);
@@ -238,7 +240,6 @@ public class StreamCombinerImplTest implements Observer {
 		}
 		assertEquals(totalAmount, amount);
 		assertEquals(0, exceptions);
-		log.debug(output);
 	}
 	
 	private static Dto jsonToDto(String json){

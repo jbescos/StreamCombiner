@@ -1,19 +1,23 @@
 package es.tododev.combiner.impl;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Observable;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.BinaryOperator;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.api.ElementManager;
+import es.tododev.combiner.api.ElementSerializerException;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
 import es.tododev.combiner.api.StreamCombinerException;
@@ -22,9 +26,10 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManager<ID,E> elementMgr;
-	private final Map<ID,E> combined;
+	private final Map<ID,Slot> combined;
 	private final int toleranceLimit;
-	private final Map<Sender,SenderInfo> senders = new HashMap<>();
+	private final Set<Sender> senders = new HashSet<>();
+	private ID latest;
 	
 	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit) {
 		this.elementMgr = elementMgr;
@@ -34,132 +39,154 @@ public class StreamCombinerImpl<ID,E> extends Observable implements StreamCombin
 	
 	@Override
 	public void register(Sender sender){
-		senders.put(sender, new SenderInfo(new ArrayList<>()));
+		senders.add(sender);
 	}
 	
 	@Override
 	public synchronized void unregister(Sender sender){
 		log.info("Unregister: "+sender);
 		senders.remove(sender);
-		sender.timeout();
+		combined.values().stream().forEach(slot -> slot.getSenders().remove(sender));
 		if(senders.size() == 0){
 			try {
-				flush(combined.size()-1);
-			} catch (Exception e) {
+				flush(null);
+			} catch (ElementSerializerException e) {
 				log.error("Unexpected error", e);
+			}
+		}
+	}
+	
+	private void validateEntry(ID newId, Sender sender) throws StreamCombinerException{
+		if(!senders.contains(sender)){
+			throw new StreamCombinerException("Sender is not registered");
+		}
+		if(latest != null){
+			int result = elementMgr.comparator().compare(latest, newId);
+			if(result != -1){
+				throw new StreamCombinerException(newId+" has been already proccessed.");
 			}
 		}
 	}
 
 	@Override
-	public void send(Sender sender, String message) throws StreamCombinerException {
-		try{
-			E newElement = elementMgr.createFromString(message);
-			ID id = elementMgr.getID(newElement);
-			synchronized (this) {
-//				log.debug("New message -> "+message);
-				if(!senders.containsKey(sender)){
-					throw new IllegalStateException("Sender is not registered");
-				}
-				ID cutId = getCutId();
-				checkValidId(id, cutId);
-				E original = combined.get(id);
-				if(original == null){
-					combined.put(id, newElement);
-				}else{
-					elementMgr.merge(original, newElement);
-				}
-				SenderInfo senderInfo = senders.get(sender);
-				if(!senderInfo.processed.contains(id)){
-					senderInfo.processed.add(id);
-				}
-				int sendToIdx = calculateIdxToSend(cutId);
-				if(sendToIdx > -1){
-					flush(sendToIdx);
-				}
+	public void send(Sender sender, String message) throws StreamCombinerException, ElementSerializerException {
+		E newElement = elementMgr.createFromString(message);
+		ID id = elementMgr.getID(newElement);
+		synchronized (this) {
+			log.debug("Size of list: "+combined.size());
+			validateEntry(id, sender);
+			insertOrMerge(id, newElement, sender);
+			ID sendId = getSendId();
+			if(sendId != null){
+				flush(sendId);
 			}
-		}catch(Exception e){
-			log.error("ERROR: ", e);
-			throw new StreamCombinerException("ERROR: "+message, e);
+			log.debug("Contains: "+combined.keySet());
 		}
 	}
 	
-	private void checkValidId(ID id, ID cutId){
-		if(cutId != null){
-			int result = elementMgr.comparator().compare(cutId, id);
-			if(result == 1){
-				throw new IllegalArgumentException(id+" has been already proccessed.");
-			}
+	private void insertOrMerge(ID newId, E newElement, Sender sender){
+		Slot original = combined.get(newId);
+		if(original == null){
+			original = new Slot(newElement);
+			original.init(sender);
+			combined.put(newId, original);
+		}else{
+			original.increment(sender);
+			elementMgr.merge(original.getElement(), newElement);
 		}
 	}
 	
-	private ID getCutId(){
-		for(SenderInfo info : senders.values()){
-			if(info.processed.size() == 0){
-				return null;
+	private void sumCounts(Map<Sender,Integer> totalCounts, Map<Sender,Integer> slotCounts){
+		for(Entry<Sender,Integer> entry : slotCounts.entrySet()){
+			Integer totalCount = totalCounts.get(entry.getKey());
+			if(totalCount == null){
+				totalCount = 1;
+			}else{
+				totalCount = totalCount + entry.getValue();
 			}
+			totalCounts.put(entry.getKey(), totalCount);
 		}
-		ID cutId = senders.values().stream().map(info -> info.processed.size()>0 ? info.processed.get(info.processed.size()-1):null).reduce(BinaryOperator.minBy(elementMgr.comparator())).orElse(null);
-		return cutId;
 	}
 	
-	private int getMinSenderIdx(ID minID){
-		List<ID> list = combined.keySet().stream().collect(Collectors.toList());
-		int idx = list.indexOf(minID);
-//		log.debug("Returning idx = "+idx+" of "+list.size()+" elements. Limit value = "+minID);
-		for(SenderInfo senderInfo : senders.values()){
-			int fromIndex = senderInfo.processed.indexOf(minID);
-			if(fromIndex > -1){
-				for(int i=0;i<fromIndex+1;i++){
-					ID removed = senderInfo.processed.remove(0);
-//					log.debug("Removed "+removed+" from collection "+senderInfo.processed);
+	private ID getSendId(){
+		Map<Sender,Integer> totalCounts = new LinkedHashMap<>();
+		List<Entry<ID, Slot>> reversed = new ArrayList<>(combined.entrySet());
+		Collections.reverse(reversed);
+		for(Entry<ID,Slot> entry : reversed){
+			Slot slot = entry.getValue();
+			sumCounts(totalCounts, slot.getSenders());
+			if(isAllSendersSentTwoTimes(totalCounts)){
+				log.debug("ID to deliver: "+entry.getKey());
+				return entry.getKey();
+			}
+		}
+		if(combined.size() >= toleranceLimit){
+			log.info("Reached the tolerance limit, one sender is going to be unregistered");
+			List<Sender> alreadyFound = new ArrayList<>(totalCounts.keySet());
+			Collections.reverse(alreadyFound);
+			Iterator<Sender> iter = alreadyFound.iterator();
+			if(iter.hasNext()){
+				unregister(iter.next());
+			}
+			return getSendId();
+		}
+		return null;
+	}
+	
+	private boolean isAllSendersSentTwoTimes(Map<Sender,Integer> counts){
+		final int TWO_TIMES = 2;
+		if(senders.size() == counts.size()){
+			for(Integer count : counts.values()){
+				if(count < TWO_TIMES){
+					return false;
 				}
 			}
+			log.debug("Number of insertions per sender: "+counts);
+			return true;
 		}
-		return idx;
+		return false;
 	}
 	
-	private int calculateIdxToSend(ID cutId){
-		if(cutId != null){
-			Set<Sender> readyToFlushSenders = senders.entrySet().stream().filter(entry -> entry.getValue().isReadyToFlush(cutId)).map(entry -> entry.getKey()).collect(Collectors.toSet());
-			if(readyToFlushSenders.size() == senders.size()){
-//				log.debug("Having the messages from all the inputs");
-				return getMinSenderIdx(cutId);
-			}else if(combined.size() >= toleranceLimit){
-				List<Sender> notReadyToFlushSenders = senders.keySet().stream().filter(sender -> !readyToFlushSenders.contains(sender)).collect(Collectors.toList());
-				log.warn("Reached the tolerance limit, we are going to discard the hanged inputs: "+notReadyToFlushSenders);
-				notReadyToFlushSenders.stream().forEach(sender -> unregister(sender));
-			}
-		}
-		return -1;
-	}
-	
-	private void flush(int sendToIdx) throws Exception {	
+	private void flush(ID sendId) throws ElementSerializerException {	
 		List<ID> ordered = new ArrayList<>(combined.keySet());
-		log.debug("Flushing from 0 to "+sendToIdx+" in collection "+ordered);
-		for(int i=0; i<(sendToIdx+1);i++){
-			E element = combined.remove(ordered.get(i));
-			String text = elementMgr.createFromObj(element);
+		log.debug("Flushing till ID "+sendId+" in collection "+ordered);
+		for(ID id : ordered){
+			latest = id;
+			// FIXME eleminar al final
+			Slot slot = combined.remove(id);
+			String text = elementMgr.createFromObj(slot.getElement());
 			log.debug("Notify "+text);
 			setChanged();
 			notifyObservers(text);
+			if(sendId != null && sendId == id){
+				break;
+			}
 		}
 	}
 	
-	private class SenderInfo{
-		private List<ID> processed;
-		private SenderInfo(List<ID> processed){
-			this.processed = processed;
+	private final class Slot {
+		private final E element;
+		private final Map<Sender, Integer> sendersCount = new HashMap<>();
+		private Slot(E element){
+			this.element = element;
 		}
-		private boolean isReadyToFlush(ID minID){
-			for(ID id : processed){
-				if(elementMgr.comparator().compare(minID, id) == -1){
-//					log.debug(id+" higher than "+minID+", this sender is ready to flush");
-					return true;
-				}
+		public E getElement() {
+			return element;
+		}
+		public Map<Sender, Integer> getSenders() {
+			return sendersCount;
+		}
+		public void init(Sender sender){
+			sendersCount.put(sender, 1);
+		}
+		public void increment(Sender sender){
+			Integer count = sendersCount.get(sender);
+			if(count == null){
+				init(sender);
+			}else{
+				count++;
+				sendersCount.put(sender, count);
 			}
-//			log.debug("Not ready to flush, "+minID+" is the lowest in "+processed);
-			return false;
 		}
 	}
 

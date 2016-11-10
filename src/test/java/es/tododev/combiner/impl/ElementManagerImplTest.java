@@ -9,6 +9,7 @@ import javax.xml.bind.JAXBException;
 import org.junit.Before;
 import org.junit.Test;
 
+import es.tododev.combiner.api.ElementSerializerException;
 import es.tododev.combiner.impl.CachedComparator;
 import es.tododev.combiner.impl.ElementManagerImpl;
 
@@ -22,7 +23,7 @@ public class ElementManagerImplTest {
 	}
 	
 	@Test
-	public void stringConversions() throws JAXBException, IOException{
+	public void stringConversions() throws JAXBException, IOException, ElementSerializerException{
 		ElementManagerImpl elementMgr = new ElementManagerImpl((x, y) -> Long.compare(x, y));
 		// FIXME?? in the example is </timeStamp> instead of </timestamp>
 		Dto dto = elementMgr.createFromString("<data> <timestamp>123456789</timestamp> <amount>1234.567890</amount> </data>");

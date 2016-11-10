@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import es.tododev.combiner.api.ElementSerializerException;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
 import es.tododev.combiner.api.StreamCombinerException;
@@ -103,7 +104,7 @@ public final class InputListener {
 		}
 	}
 	
-	private void handleRequest(Socket socket, Sender sender){
+	private void handleRequest(Socket socket, Sender sender) {
 		try{
 			BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		    if(visitor.isPresent()){
@@ -113,7 +114,7 @@ public final class InputListener {
 		    while ((message = reader.readLine()) != null && analizeMessage(message, socket, sender)) {
 		    	streamCombiner.send(sender, message);
 		    }
-		} catch (IOException | StreamCombinerException e) {
+		} catch (IOException | StreamCombinerException | ElementSerializerException e) {
 			log.warn("Lost connection: "+e+". Cause: "+e);
 		}
 		disconnect(socket, sender);
