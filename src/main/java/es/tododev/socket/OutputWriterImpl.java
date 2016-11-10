@@ -9,9 +9,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.api.ElementManager;
-import es.tododev.combiner.api.ElementSerializerException;
-import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.api.OutputWriter;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.OutputException;
 
 public class OutputWriterImpl<ID,E> implements OutputWriter<E> {
 

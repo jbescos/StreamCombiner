@@ -9,7 +9,7 @@ import javax.xml.bind.JAXBException;
 import org.junit.Before;
 import org.junit.Test;
 
-import es.tododev.combiner.api.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
 import es.tododev.combiner.impl.CachedComparator;
 import es.tododev.combiner.impl.ElementManagerImpl;
 

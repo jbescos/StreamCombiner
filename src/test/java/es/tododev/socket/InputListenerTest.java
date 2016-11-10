@@ -19,8 +19,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import es.tododev.combiner.api.ElementSerializerException;
-import es.tododev.combiner.api.OutputException;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.OutputException;
 import es.tododev.combiner.impl.CachedComparator;
 import es.tododev.combiner.impl.Dto;
 import es.tododev.combiner.impl.ElementManagerImpl;

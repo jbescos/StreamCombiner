@@ -14,11 +14,12 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 
-import es.tododev.combiner.api.ElementSerializerException;
-import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.api.OutputWriter;
 import es.tododev.combiner.api.Sender;
-import es.tododev.combiner.api.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.OutputException;
+import es.tododev.combiner.api.exceptions.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.UnregisteredException;
 import es.tododev.utils.ConcurrentUtils;
 import es.tododev.utils.ConcurrentUtils.ConcurrentTest;
 
@@ -53,7 +54,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test
-	public void exampleFlow() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void exampleFlow() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10, this);
 		Sender sender1 = new Sender();
 		Sender sender2 = new Sender();
@@ -86,7 +87,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test
-	public void hangedInput1() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void hangedInput1() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5, this);
 		Sender sender1 = new Sender();
 		Sender sender2 = new Sender();
@@ -113,7 +114,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test
-	public void unknownIssue() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void unknownIssue() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		log.info(" test-> unknownIssue ");
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100, this);
 		Sender sender1 = new Sender();
@@ -141,7 +142,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test(expected = ElementSerializerException.class)
-	public void wrongInput() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void wrongInput() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 5, this);
 		Sender sender1 = new Sender();
 		combiner.register(sender1);
@@ -149,7 +150,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test(expected = StreamCombinerException.class)
-	public void alreadyProcessedTimestamp() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void alreadyProcessedTimestamp() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 10, this);
 		Sender sender1 = new Sender();
 		combiner.register(sender1);
@@ -160,7 +161,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test
-	public void startWithSameTimestamp() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void startWithSameTimestamp() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		log.debug(" test -> startWithSameTimestamp");
 		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100, this);
 		Sender sender1 = new Sender();
@@ -175,7 +176,7 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 	}
 	
 	@Test
-	public void outputException() throws StreamCombinerException, ElementSerializerException, OutputException{
+	public void outputException() throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException{
 		OutputWriter<Dto> writer = new OutputWriter<Dto>(){
 			private int counter = 0;
 			@Override

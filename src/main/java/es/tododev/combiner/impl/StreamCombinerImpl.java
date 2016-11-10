@@ -16,12 +16,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import es.tododev.combiner.api.ElementManager;
-import es.tododev.combiner.api.ElementSerializerException;
-import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.api.OutputWriter;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
-import es.tododev.combiner.api.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.OutputException;
+import es.tododev.combiner.api.exceptions.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.UnregisteredException;
 
 public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 
@@ -59,9 +60,9 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 		}
 	}
 	
-	private void validateEntry(ID newId, Sender sender) throws StreamCombinerException{
+	private void validateEntry(ID newId, Sender sender) throws StreamCombinerException, UnregisteredException{
 		if(!senders.contains(sender)){
-			throw new StreamCombinerException("Sender is not registered");
+			throw new UnregisteredException("Sender is not registered");
 		}
 		if(latest != null){
 			int result = elementMgr.comparator().compare(latest, newId);
@@ -72,7 +73,7 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 	}
 
 	@Override
-	public void send(Sender sender, String message) throws StreamCombinerException, ElementSerializerException, OutputException {
+	public void send(Sender sender, String message) throws StreamCombinerException, ElementSerializerException, OutputException, UnregisteredException {
 		E newElement = elementMgr.createFromString(message);
 		ID id = elementMgr.getID(newElement);
 		synchronized (this) {

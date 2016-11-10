@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.MarshallerProperties;
 
 import es.tododev.combiner.api.ElementManager;
-import es.tododev.combiner.api.ElementSerializerException;
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
 
 public class ElementManagerImpl implements ElementManager<Long, Dto> {
 

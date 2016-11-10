@@ -1,7 +1,7 @@
-package es.tododev.combiner.api;
+package es.tododev.combiner.api.exceptions;
 
 @SuppressWarnings("serial")
-public class ElementSerializerException extends Exception {
+public class ElementSerializerException extends StreamCombinerException {
 
 	public ElementSerializerException(String message, Throwable cause) {
 		super(message, cause);

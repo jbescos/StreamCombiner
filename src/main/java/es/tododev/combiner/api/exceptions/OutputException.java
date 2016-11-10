@@ -1,7 +1,7 @@
-package es.tododev.combiner.api;
+package es.tododev.combiner.api.exceptions;
 
 @SuppressWarnings("serial")
-public class OutputException extends Exception {
+public class OutputException extends StreamCombinerException {
 
 	public OutputException(String message, Throwable cause) {
 		super(message, cause);

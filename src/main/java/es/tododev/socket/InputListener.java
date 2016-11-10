@@ -15,11 +15,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import es.tododev.combiner.api.ElementSerializerException;
-import es.tododev.combiner.api.OutputException;
 import es.tododev.combiner.api.Sender;
 import es.tododev.combiner.api.StreamCombiner;
-import es.tododev.combiner.api.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.StreamCombinerException;
+import es.tododev.combiner.api.exceptions.UnregisteredException;
 
 public final class InputListener {
 
@@ -113,9 +112,16 @@ public final class InputListener {
 		    }
 		    String message = null;
 		    while ((message = reader.readLine()) != null && analizeMessage(message, socket, sender)) {
-		    	streamCombiner.send(sender, message);
+		    	try{
+		    		streamCombiner.send(sender, message);
+		    	}catch(StreamCombinerException e){
+		    		writeInSocket(socket, "WARNING: "+e.getMessage());
+		    	}
 		    }
-		} catch (IOException | StreamCombinerException | ElementSerializerException | OutputException e) {
+		} catch(UnregisteredException e) {
+			log.error("Trying to write without being registered", e);
+			writeInSocket(socket, "ERROR: "+e.getMessage());
+		} catch (IOException e) {
 			log.warn("Lost connection: "+e+". Cause: "+e);
 		}
 		disconnect(socket, sender);

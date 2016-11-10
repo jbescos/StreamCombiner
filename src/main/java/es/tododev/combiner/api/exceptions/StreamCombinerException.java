@@ -1,4 +1,4 @@
-package es.tododev.combiner.api;
+package es.tododev.combiner.api.exceptions;
 
 @SuppressWarnings("serial")
 public class StreamCombinerException extends Exception {

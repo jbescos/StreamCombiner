@@ -2,6 +2,8 @@ package es.tododev.combiner.api;
 
 import java.util.Comparator;
 
+import es.tododev.combiner.api.exceptions.ElementSerializerException;
+
 public interface ElementManager<ID,E> {
 
 	E createFromString(String raw) throws ElementSerializerException;
