@@ -1,6 +1,7 @@
 package es.tododev.combiner.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,6 +172,34 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 		combiner.send(sender2, "<data> <timestamp>1478444952989</timestamp> <amount>1</amount> </data>");
 		combiner.send(sender2, "<data> <timestamp>1478444952990</timestamp> <amount>1</amount> </data>");
 		assertEquals(Arrays.asList(new Dto(1478444952989L, 2.0)), output);
+	}
+	
+	@Test
+	public void outputException() throws StreamCombinerException, ElementSerializerException, OutputException{
+		OutputWriter<Dto> writer = new OutputWriter<Dto>(){
+			private int counter = 0;
+			@Override
+			public void write(Dto content) throws OutputException, ElementSerializerException {
+				if(counter >=1){
+					throw new OutputException("Error message");
+				}
+				StreamCombinerImplTest.this.write(content);
+				counter++;
+			}
+			
+		};
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 100, writer);
+		Sender sender1 = new Sender();
+		combiner.register(sender1);
+		combiner.send(sender1, "<data> <timestamp>1478444952989</timestamp> <amount>1</amount> </data>");
+		combiner.send(sender1, "<data> <timestamp>1478444952990</timestamp> <amount>1</amount> </data>");
+		assertEquals(Arrays.asList(new Dto(1478444952989L, 1.0)), output);
+		try{
+			combiner.send(sender1, "<data> <timestamp>1478444952991</timestamp> <amount>1</amount> </data>");
+			fail("Unreacheable code");
+		}catch(OutputException e){
+			assertEquals(Arrays.asList(new Dto(1478444952989L, 1.0)), output);
+		}
 	}
 	
 	@Test
