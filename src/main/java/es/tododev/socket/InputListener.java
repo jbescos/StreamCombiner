@@ -115,6 +115,7 @@ public final class InputListener {
 		    	try{
 		    		streamCombiner.send(sender, message);
 		    	}catch(StreamCombinerException e){
+		    		log.error("Request not valid: "+e);
 		    		writeInSocket(socket, "WARNING: "+e.getMessage());
 		    	}
 		    }

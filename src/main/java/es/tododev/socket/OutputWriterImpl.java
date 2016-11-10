@@ -29,6 +29,7 @@ public class OutputWriterImpl<ID,E> implements OutputWriter<E> {
 	public void write(E content) throws OutputException, ElementSerializerException {
 		try {
 			String text = elementMgr.createFromObj(content);
+			log.debug(text);
 			Files.write(Paths.get(file), text.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 			Files.write(Paths.get(file), JUMP_LINE.getBytes(), StandardOpenOption.APPEND);
 		} catch (IOException e) {

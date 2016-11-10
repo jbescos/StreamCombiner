@@ -5,6 +5,9 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.CountDownLatch;
@@ -19,24 +22,27 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import es.tododev.combiner.api.OutputWriter;
 import es.tododev.combiner.api.exceptions.ElementSerializerException;
 import es.tododev.combiner.api.exceptions.OutputException;
 import es.tododev.combiner.impl.CachedComparator;
 import es.tododev.combiner.impl.Dto;
 import es.tododev.combiner.impl.ElementManagerImpl;
 import es.tododev.combiner.impl.StreamCombinerImpl;
+import es.tododev.combiner.impl.StreamCombinerImplTest;
 import es.tododev.utils.ConcurrentUtils;
 import es.tododev.utils.ConcurrentUtils.ConcurrentTest;
 
-public class InputListenerTest {
+public class InputListenerTest implements OutputWriter<Dto> {
 
 	private final static Logger log = LogManager.getLogger();
+	private final List<Dto> output = Collections.synchronizedList(new ArrayList<>());
 	private final ElementManagerImpl elementMgr = new ElementManagerImpl(new CachedComparator(1000, 100));
 	private final OutputWriterImpl<Long, Dto> out = new OutputWriterImpl<>("target/output.log", elementMgr);
 	private final int PORT = 25555;
 	
 	@Test
-	@Ignore
+//	@Ignore
 	public void inConcurrence() throws Exception{
 		log.debug("inConcurrence begin");
 		inConcurrence(4, 1000);
@@ -46,7 +52,7 @@ public class InputListenerTest {
 		final CountDownLatch start = new CountDownLatch(1);
 		final CountDownLatch listening = new CountDownLatch(sockets);
 		final CountDownLatch finish = new CountDownLatch(1);
-		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 1000, out);
+		StreamCombinerImpl<Long,Dto> combiner = new StreamCombinerImpl<>(elementMgr, 1000, out, this);
 		final InputListener listener = InputListener.createInputListener(sockets, PORT, combiner, Optional.of(new Visitor(){
 			@Override
 			public void start() {
@@ -73,6 +79,7 @@ public class InputListenerTest {
 			@Override
 			public void execute(Socket socket) throws Exception {
 				for(int i=0; i<requestsPerThread; i++){
+					Thread.sleep(1);
 					listener.writeInSocket(socket, "<data> <timestamp>"+System.currentTimeMillis()+"</timestamp> <amount>1</amount> </data>\n");
 				}
 			}
@@ -89,6 +96,7 @@ public class InputListenerTest {
 			}
 		});
 		finish.await(30000, TimeUnit.MILLISECONDS);
+		StreamCombinerImplTest.checkconcurrentTest(output, 0, -1);
 		log.info("Finish test inConcurrence");
 	}
 	
@@ -110,6 +118,11 @@ public class InputListenerTest {
 			String fileName = "target/file"+i+".log";
 			Files.write(Paths.get(fileName), text.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		}	
+	}
+
+	@Override
+	public void write(Dto content) throws OutputException, ElementSerializerException {
+		output.add(content);
 	}
 	
 }

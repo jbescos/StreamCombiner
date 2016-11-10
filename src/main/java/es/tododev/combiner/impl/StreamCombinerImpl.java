@@ -28,17 +28,17 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 
 	private final static Logger log = LogManager.getLogger();
 	private final ElementManager<ID,E> elementMgr;
-	private final OutputWriter<E> writer;
+	private final OutputWriter<E>[] writers;
 	private final Map<ID,Slot> combined;
 	private final int toleranceLimit;
 	private final Set<Sender> senders = new HashSet<>();
 	private ID latest;
 	
-	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit, OutputWriter<E> writer) {
+	public StreamCombinerImpl(ElementManager<ID,E> elementMgr, int toleranceLimit, OutputWriter<E> ... writers) {
 		this.elementMgr = elementMgr;
 		this.toleranceLimit = toleranceLimit;
 		this.combined = new TreeMap<>(elementMgr.comparator());
-		this.writer = writer;
+		this.writers = writers;
 	}
 	
 	@Override
@@ -77,14 +77,15 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 		E newElement = elementMgr.createFromString(message);
 		ID id = elementMgr.getID(newElement);
 		synchronized (this) {
-			log.debug("Size of list: "+combined.size());
+			log.debug(message);
+//			log.debug("Size of list: "+combined.size());
 			validateEntry(id, sender);
 			insertOrMerge(id, newElement, sender);
 			ID sendId = getSendId();
 			if(sendId != null){
 				flush(sendId);
 			}
-			log.debug("Contains: "+combined.keySet());
+//			log.debug("Contains: "+combined.keySet());
 		}
 	}
 	
@@ -120,12 +121,12 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 			Slot slot = entry.getValue();
 			sumCounts(totalCounts, slot.getSenders());
 			if(isAllSendersSentTwoTimes(totalCounts)){
-				log.debug("ID to deliver: "+entry.getKey());
+				log.info("ID to deliver: "+entry.getKey());
 				return entry.getKey();
 			}
 		}
 		if(combined.size() >= toleranceLimit){
-			log.info("Reached the tolerance limit, one sender is going to be unregistered");
+			log.warn("Reached the tolerance limit, one sender is going to be unregistered");
 			List<Sender> alreadyFound = new ArrayList<>(totalCounts.keySet());
 			Collections.reverse(alreadyFound);
 			Iterator<Sender> iter = alreadyFound.iterator();
@@ -145,7 +146,7 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 					return false;
 				}
 			}
-			log.debug("Number of insertions per sender: "+counts);
+//			log.debug("Number of insertions per sender: "+counts);
 			return true;
 		}
 		return false;
@@ -157,7 +158,9 @@ public class StreamCombinerImpl<ID,E> implements StreamCombiner {
 		for(ID id : ordered){
 			latest = id;
 			Slot slot = combined.get(id);
-			writer.write(slot.getElement());
+			for(OutputWriter<E> writer : writers){
+				writer.write(slot.getElement());
+			}			
 			combined.remove(id);
 			if(sendId != null && sendId == id){
 				break;

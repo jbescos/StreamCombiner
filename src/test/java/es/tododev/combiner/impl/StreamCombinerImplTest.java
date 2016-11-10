@@ -251,7 +251,8 @@ public class StreamCombinerImplTest implements OutputWriter<Dto> {
 			}
 			previous = current;
 		}
-		assertEquals(totalAmount, amount);
+		if(totalAmount > 0)
+			assertEquals(totalAmount, amount);
 		assertEquals(0, exceptions);
 	}
 	
