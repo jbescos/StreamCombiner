@@ -6,11 +6,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +31,7 @@ public final class InputListener {
 	private final ExecutorService service;
 	private final StreamCombiner streamCombiner;
 	private final Optional<Visitor> visitor;
-	private AtomicInteger currentSockets = new AtomicInteger(0);
+	private final Set<Socket> openSockets = Collections.synchronizedSet(new HashSet<>());
 	public final static String STOP_APPLICATION = "STOP";
 	public final static String CLOSE_CONNECTION = "CLOSE";
 	
@@ -47,19 +49,23 @@ public final class InputListener {
 		    	visitor.get().start();
 		    }
 			while(!service.isShutdown()){
-				if(currentSockets.get() < nSockets){
+				if(openSockets.size() < nSockets){
 					Socket socket = serverSocket.accept();
 					log.debug("New connection accepted "+socket);
-					writeInSocket(socket, "Connection accepted: "+socket);
-					Sender sender = new Sender();
-					streamCombiner.register(sender);
+					writeInSocket(socket, "INFO: Connection accepted: "+socket);
 					if(!service.isShutdown()){
+						Sender sender = new Sender();
+						streamCombiner.register(sender);
 						service.execute(() -> handleRequest(socket, sender));
-						currentSockets.incrementAndGet();
+						openSockets.add(socket);
 					}
 				}
 			}
-			log.info("Finish socket reading");
+			log.info("Finish server socket, closing all the connections");
+			for(Socket socket : openSockets){
+				writeInSocket(socket, "INFO: Server is off\n");
+				socket.close();
+			}
 		}catch(IOException e){
 			log.error("Error in server socket", e);
 			stop();
@@ -83,7 +89,7 @@ public final class InputListener {
 		try {
 			streamCombiner.unregister(sender);
 			log.info("Closing socket "+socket);
-			currentSockets.decrementAndGet();
+			openSockets.remove(socket);
 		} finally {
 			try {
 				socket.close();
@@ -97,7 +103,7 @@ public final class InputListener {
 	void writeInSocket(Socket socket, String message) {
 		try{
 			PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-			writer.write(message);
+			writer.write(message+"\n");
 			writer.flush();
 		} catch (IOException e) {
 			log.error("Can not write response: "+message, e);
@@ -130,11 +136,10 @@ public final class InputListener {
 	
 	private boolean analizeMessage(String message, Socket socket, Sender sender){
 		if(STOP_APPLICATION.equals(message)){
-			writeInSocket(socket, "Finalize application");
 			stop();
 			return false;
 		}else if(CLOSE_CONNECTION.equals(message)){
-			writeInSocket(socket, "Closing connection");
+			writeInSocket(socket, "INFO: Closing connection");
 			return false;
 		}else{
 			return true;
